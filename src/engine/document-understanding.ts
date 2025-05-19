@@ -12,9 +12,8 @@ export class DocumentUnderstandingService<T> {
     outputSchema?: object;
   }): Promise<T> {
     const text = await this.ocr.recognizeText(input);
-    if (!text) throw new Error('OCR returned no text');
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!text) throw new Error('OCR returned no text');
 
     return this.textStructuring.parse({
       text,
