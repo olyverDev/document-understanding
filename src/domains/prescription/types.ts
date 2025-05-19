@@ -31,3 +31,5 @@ export interface PrescriptionDocument {
     tint?: string;
   };
 }
+
+export type PrescriptionDocuments = PrescriptionDocument[];

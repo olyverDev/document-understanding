@@ -1,16 +1,19 @@
+import type { Mistral } from '@mistralai/mistralai';
+
 import { OCRProcessingError } from '../../../../../src/errors/ocr';
 import { MistralOCR } from '../../../../../src/infrastructure/adapters/ocr/mistral';
 import type { OCRInput } from '../../../../../src/ports/ocr';
 
 describe('MistralOCR', () => {
+  const mockProcess = jest.fn();
   const mockClient = {
     ocr: {
-      process: jest.fn(),
+      process: mockProcess,
     },
-  };
+  } as unknown as Mistral;
 
   const modelName = 'mistral-ocr-latest';
-  const adapter = new MistralOCR(mockClient as any, { model: modelName });
+  const adapter = new MistralOCR(mockClient, { model: modelName });
 
   const base64Image: OCRInput = {
     source: 'base64',
@@ -41,7 +44,7 @@ describe('MistralOCR', () => {
   });
 
   it('handles base64 image input', async () => {
-    mockClient.ocr.process.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       pages: [{ markdown: '# image' }],
     });
 
@@ -58,7 +61,7 @@ describe('MistralOCR', () => {
   });
 
   it('handles base64 PDF input', async () => {
-    mockClient.ocr.process.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       pages: [{ markdown: '# pdf' }],
     });
 
@@ -75,7 +78,7 @@ describe('MistralOCR', () => {
   });
 
   it('handles URL image input', async () => {
-    mockClient.ocr.process.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       pages: [{ markdown: '# url image' }],
     });
 
@@ -92,7 +95,7 @@ describe('MistralOCR', () => {
   });
 
   it('handles URL PDF input', async () => {
-    mockClient.ocr.process.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       pages: [{ markdown: '# url pdf' }],
     });
 
@@ -109,27 +112,28 @@ describe('MistralOCR', () => {
   });
 
   it('throws if no markdown is found', async () => {
-    mockClient.ocr.process.mockResolvedValueOnce({ pages: [{}] });
+    mockProcess.mockResolvedValueOnce({ pages: [{}] });
 
     await expect(adapter.recognizeText(base64Image)).rejects.toThrow(OCRProcessingError);
   });
 
   it('rethrows OCRProcessingError as-is', async () => {
     const err = new OCRProcessingError('wrapped');
-    mockClient.ocr.process.mockRejectedValueOnce(err);
+    mockProcess.mockRejectedValueOnce(err);
 
     await expect(adapter.recognizeText(base64Image)).rejects.toBe(err);
   });
 
   it('wraps unknown errors', async () => {
-    mockClient.ocr.process.mockRejectedValueOnce(new Error('unknown'));
+    mockProcess.mockRejectedValueOnce(new Error('unknown'));
 
     await expect(adapter.recognizeText(base64Image)).rejects.toThrow(OCRProcessingError);
   });
 
   it('throws for unsupported input combo', () => {
     const invalid: OCRInput = {
-      source: 'blob' as any,
+      // @ts-expect-error unsupported source
+      source: 'blob',
       file: '',
       documentType: 'pdf',
     };

@@ -1,16 +1,19 @@
+import { Mistral } from '@mistralai/mistralai';
+
 import { TextStructuringError } from '../../../../../src/errors/text-structuring';
 import { MistralTextStructuring } from '../../../../../src/infrastructure/adapters/text-structuring/mistral';
 
 describe('MistralTextStructuring', () => {
+  const mockProcess = jest.fn();
   const mockClient = {
     chat: {
-      complete: jest.fn(),
+      complete: mockProcess,
     },
-  };
+  } as unknown as Mistral;
 
   const modelName = 'mistral-medium-latest';
   const adapter = new MistralTextStructuring<{ value: string }>(
-    mockClient as any,
+    mockClient,
     { model: modelName }
   );
 
@@ -23,13 +26,13 @@ describe('MistralTextStructuring', () => {
 
   it('parses valid JSON when no schema is provided', async () => {
     const expected = { value: 'done' };
-    mockClient.chat.complete.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       choices: [{ message: { content: JSON.stringify(expected) } }],
     });
 
     const result = await adapter.parse({ prompt, text });
     expect(result).toEqual(expected);
-    expect(mockClient.chat.complete).toHaveBeenCalledWith(
+    expect(mockProcess).toHaveBeenCalledWith(
       expect.objectContaining({
         model: modelName,
         responseFormat: { type: 'json_object' },
@@ -39,7 +42,7 @@ describe('MistralTextStructuring', () => {
 
   it('parses valid JSON when schema is provided', async () => {
     const expected = { value: 'structured' };
-    mockClient.chat.complete.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       choices: [{ message: { content: JSON.stringify(expected) } }],
     });
 
@@ -56,7 +59,7 @@ describe('MistralTextStructuring', () => {
 
     const result = await adapter.parse({ prompt, text, outputSchema: schema });
     expect(result).toEqual(expected);
-    expect(mockClient.chat.complete).toHaveBeenCalledWith(
+    expect(mockProcess).toHaveBeenCalledWith(
       expect.objectContaining({
         responseFormat: {
           type: 'json_schema',
@@ -71,7 +74,7 @@ describe('MistralTextStructuring', () => {
   });
 
   it('throws a TextStructuringError when response is not a string', async () => {
-    mockClient.chat.complete.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       choices: [{ message: { content: null } }],
     });
 
@@ -79,7 +82,7 @@ describe('MistralTextStructuring', () => {
   });
 
   it('throws a TextStructuringError on invalid JSON', async () => {
-    mockClient.chat.complete.mockResolvedValueOnce({
+    mockProcess.mockResolvedValueOnce({
       choices: [{ message: { content: '{ broken json' } }],
     });
 
@@ -88,13 +91,13 @@ describe('MistralTextStructuring', () => {
 
   it('rethrows TextStructuringError as-is', async () => {
     const error = new TextStructuringError('Already wrapped');
-    mockClient.chat.complete.mockRejectedValueOnce(error);
+    mockProcess.mockRejectedValueOnce(error);
 
     await expect(adapter.parse({ prompt, text })).rejects.toBe(error);
   });
 
   it('throws TextStructuringError on unexpected SDK errors', async () => {
-    mockClient.chat.complete.mockRejectedValueOnce(new Error('Boom'));
+    mockProcess.mockRejectedValueOnce(new Error('Boom'));
 
     await expect(adapter.parse({ prompt, text })).rejects.toThrow(TextStructuringError);
   });

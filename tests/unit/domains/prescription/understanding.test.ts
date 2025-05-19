@@ -1,10 +1,10 @@
-import type { PrescriptionDocument } from '../../../../src/domains/prescription/types';
+import type { PrescriptionDocument, PrescriptionDocuments } from '../../../../src/domains/prescription/types';
 import { PrescriptionUnderstandingService } from '../../../../src/domains/prescription/understanding';
 import { DocumentUnderstandingServiceFactory as OriginalFactory } from '../../../../src/engine/document-understanding-factory';
 import { Providers } from '../../../../src/infrastructure/providers';
 import type { OCRInput } from '../../../../src/ports/ocr';
 
-const mockUnderstand = jest.fn().mockResolvedValue({ patient: { firstName: 'John' } });
+const mockUnderstand = jest.fn().mockResolvedValue([{ patient: { firstName: 'John' } }]);
 
 jest.mock('../../../../src/engine/document-understanding-factory', () => ({
   DocumentUnderstandingServiceFactory: jest.fn(() => ({
@@ -22,9 +22,9 @@ describe('PrescriptionUnderstandingService', () => {
     documentType: 'image',
   };
 
-  const expected: PrescriptionDocument = {
+  const expected: PrescriptionDocuments = [{
     patient: { firstName: 'John' },
-  } as any;
+  } as PrescriptionDocument];
 
   it('creates and uses DocumentUnderstandingService to return a parsed result', async () => {
     const service = new PrescriptionUnderstandingService({

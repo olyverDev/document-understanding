@@ -19,7 +19,7 @@ describe('DocumentUnderstandingService', () => {
       recognizeText: jest.fn().mockResolvedValue(fakeOCRText),
     };
 
-    const textStructuring: TextStructuring<any> = {
+    const textStructuring: TextStructuring<typeof fakeStructuredData> = {
       parse: jest.fn().mockResolvedValue(fakeStructuredData),
     };
 
