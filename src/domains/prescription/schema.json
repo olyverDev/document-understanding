@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PrescriptionList",
+  "description": "A list of glasses prescriptions.",
+  "type": "array",
+  "items": {
+    "title": "Prescription",
+    "description": "Schema for structuring glasses prescription information based on instructions.",
+    "type": "object",
+    "properties": {
+      "patient": {
+        "type": "object",
+        "description": "Information about the patient.",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "Patient's first name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Patient's last name."
+          },
+          "birthdate": {
+            "type": "string",
+            "description": "Patient's birth date in YYYY-MM-DD format."
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName"
+        ],
+        "additionalProperties": false
+      },
+      "prescriber": {
+        "type": "object",
+        "description": "Information about the prescriber.",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "description": "Full name of the prescriber/doctor."
+          },
+          "email": {
+            "type": "string",
+            "description": "Prescriber's email address."
+          },
+          "address": {
+            "type": "string",
+            "description": "Address of the prescriber's office."
+          },
+          "adeliNumber": {
+            "type": "string",
+            "description": "ADELI identification number, format: 0-9 digits."
+          }
+        },
+        "required": [
+          "fullName"
+        ],
+        "additionalProperties": false
+      },
+      "prescription": {
+        "type": "object",
+        "description": "Details of the prescription.",
+        "properties": {
+          "prescribedAt": {
+            "type": "string",
+            "description": "Date when prescription was issued in YYYY-MM-DD format."
+          },
+          "expirationDate": {
+            "type": "string",
+            "description": "End date of validity period in YYYY-MM-DD format."
+          },
+          "right": {
+            "type": "object",
+            "description": "Prescription for right eye (OD - Œil droit).",
+            "properties": {
+              "visionType": {
+                "type": "string",
+                "enum": [
+                  "VL",
+                  "VP"
+                ],
+                "description": "Type of vision correction: VL (far vision), VP (near vision)."
+              },
+              "sphere": {
+                "type": "number",
+                "description": "Spherical correction, range from -20 to 20."
+              },
+              "cylinder": {
+                "type": "number",
+                "description": "Cylindrical correction, range from -10 to 0."
+              },
+              "axis": {
+                "type": "number",
+                "description": "Axis value, range from 0 to 180."
+              },
+              "add": {
+                "type": "number",
+                "description": "Addition value, range from 0 to 4."
+              },
+              "deg": {
+                "type": "number",
+                "description": "Degression value, range from 0 to 360."
+              },
+              "base": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "OUT",
+                  "UP",
+                  "DOWN"
+                ],
+                "description": "Direction of the base."
+              },
+              "pd": {
+                "type": "number",
+                "description": "Pupillary distance in mm for right eye."
+              },
+              "va": {
+                "type": "string",
+                "description": "Visual acuity for right eye."
+              }
+            },
+            "required": [
+              "visionType",
+              "sphere",
+              "cylinder",
+              "axis"
+            ],
+            "additionalProperties": false
+          },
+          "left": {
+            "type": "object",
+            "description": "Prescription for left eye (OG - Œil gauche).",
+            "properties": {
+              "visionType": {
+                "type": "string",
+                "enum": [
+                  "VL",
+                  "VP"
+                ],
+                "description": "Type of vision correction: VL (far vision), VP (near vision)."
+              },
+              "sphere": {
+                "type": "number",
+                "description": "Spherical correction, range from -20 to +20."
+              },
+              "cylinder": {
+                "type": "number",
+                "description": "Cylindrical correction, range from -10 to 0."
+              },
+              "axis": {
+                "type": "number",
+                "description": "Axis value, range from 0 to 180."
+              },
+              "add": {
+                "type": "number",
+                "description": "Addition value, range from 0 to 4."
+              },
+              "deg": {
+                "type": "number",
+                "description": "Degression value, range from 0 to 360."
+              },
+              "base": {
+                "type": "string",
+                "enum": [
+                  "IN",
+                  "OUT",
+                  "UP",
+                  "DOWN"
+                ],
+                "description": "Direction of the base."
+              },
+              "pd": {
+                "type": "number",
+                "description": "Pupillary distance in mm for left eye."
+              },
+              "va": {
+                "type": "string",
+                "description": "Visual acuity for left eye."
+              }
+            },
+            "required": [
+              "visionType",
+              "sphere",
+              "cylinder",
+              "axis"
+            ],
+            "additionalProperties": false
+          },
+          "treatment": {
+            "type": "string",
+            "description": "Special treatments or filters for lenses."
+          },
+          "tint": {
+            "type": "string",
+            "description": "Color or tint applied to lenses."
+          }
+        },
+        "required": [
+          "prescribedAt",
+          "right",
+          "left"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "patient",
+      "prescriber",
+      "prescription"
+    ],
+    "additionalProperties": false
+  }
+}
