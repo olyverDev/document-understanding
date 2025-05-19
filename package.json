@@ -1,0 +1,73 @@
+{
+  "name": "document-understanding",
+  "version": "1.0.0",
+  "description": "Modular, pluggable OCR + AI document understanding library",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./prescription": {
+      "import": "./dist/domains/prescription/index.js",
+      "require": "./dist/domains/prescription/index.cjs"
+    },
+    "./errors": {
+      "import": "./dist/errors/index.js",
+      "require": "./dist/errors/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "yarn clean && tsup",
+    "check:build": "tsup --dts --silent",
+    "clean": "rm -rf dist",
+    "dev": "tsup --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "ts:compile": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mistralai/mistralai": "^1.5.2",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.27.0",
+    "@types/jest": "^29.5.14",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "dotenv": "^16.5.0",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jest": "^28.11.0",
+    "jest": "^29.7.0",
+    "strip-ansi": "6.0.1",
+    "ts-jest": "^29.3.4",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.1"
+  },
+  "resolutions": {
+    "strip-ansi": "6.0.1"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "ocr",
+    "llm",
+    "document-understanding",
+    "prescription",
+    "json-schema",
+    "typescript",
+    "modular",
+    "ai"
+  ],
+  "author": "olyverDev",
+  "license": "MIT"
+}
