@@ -6,10 +6,11 @@ You can build a custom understanding pipeline using the engine and providers reg
 import { DocumentUnderstandingServiceFactory } from 'document-understanding';
 import { Providers } from 'document-understanding';
 import type { OCRInput } from 'document-understanding';
+import type { PrescriptionDocuments } from 'document-understanding/prescription';
 import schema from './your-custom-schema.json';
 import prompt from './your-custom-prompt';
 
-const engine = DocumentUnderstandingServiceFactory<PrescriptionDocument>({
+const engine = DocumentUnderstandingServiceFactory<PrescriptionDocuments>({
   ocr: {
     provider: Providers.Mistral,
     config: { apiKey: 'sk-...' },
