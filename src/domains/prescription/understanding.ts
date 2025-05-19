@@ -8,7 +8,7 @@ import { OCRInput } from '../../ports/ocr';
 
 import prompt from './prompt';
 import schema from './schema.json';
-import type { PrescriptionDocument } from './types';
+import type { PrescriptionDocuments } from './types';
 
 
 export type PrescriptionUnderstandingConfig<
@@ -26,13 +26,13 @@ export type PrescriptionUnderstandingConfig<
 };
 
 export class PrescriptionUnderstandingService {
-  private readonly understandingService: DocumentUnderstandingService<PrescriptionDocument>;
+  private readonly understandingService: DocumentUnderstandingService<PrescriptionDocuments>;
 
   constructor(config: PrescriptionUnderstandingConfig) {
-    this.understandingService = DocumentUnderstandingServiceFactory<PrescriptionDocument>(config);
+    this.understandingService = DocumentUnderstandingServiceFactory<PrescriptionDocuments>(config);
   }
 
-  async understand(prescriptionOCRInput: OCRInput): Promise<PrescriptionDocument> {
+  async understand(prescriptionOCRInput: OCRInput): Promise<PrescriptionDocuments> {
     return this.understandingService.understand(prescriptionOCRInput, {
       prompt,
       outputSchema: schema,

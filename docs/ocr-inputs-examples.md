@@ -31,5 +31,5 @@ const base64PdfInput: OCRInput = {
   documentType: 'pdf',
 };
 
-const result: PrescriptionDocument = await service.understand(/* your input */);
+const result: PrescriptionDocuments = await service.understand(/* your input */);
 ```

@@ -1,0 +1,43 @@
+[
+  {
+    "patient": {
+      "firstName": "Clara Dalila",
+      "lastName": "CANTACUZENE",
+      "birthdate": "0000-00-00"
+    },
+    "prescriber": {
+      "fullName": "Dr Vianney Andzembe",
+      "email": "secretariat@ophtaobservatoire.com",
+      "address": "3 rue Severo, 75014 Paris",
+      "adeliNumber": "750231871"
+    },
+    "prescription": {
+      "prescribedAt": "2025-03-12",
+      "expirationDate": "0000-00-00",
+      "right": {
+        "visionType": "VL",
+        "sphere": -3.00,
+        "cylinder": -1.00,
+        "axis": 165,
+        "add": 0,
+        "deg": 0,
+        "base": "OUT",
+        "pd": 0,
+        "va": ""
+      },
+      "left": {
+        "visionType": "VL",
+        "sphere": -0.75,
+        "cylinder": -1.75,
+        "axis": 5,
+        "add": 0,
+        "deg": 0,
+        "base": "OUT",
+        "pd": 0,
+        "va": ""
+      },
+      "treatment": "",
+      "tint": ""
+    }
+  }
+]

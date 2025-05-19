@@ -32,6 +32,7 @@ interface PrescriptionDocument {
         tint?: string;
     };
 }
+type PrescriptionDocuments = PrescriptionDocument[];
 
 type PrescriptionUnderstandingConfig<OCR extends keyof OCRProvidersConfigs = 'mistral', TextStructuring extends keyof TextStructuringProvidersConfigs = 'mistral'> = {
     ocr: {
@@ -46,7 +47,7 @@ type PrescriptionUnderstandingConfig<OCR extends keyof OCRProvidersConfigs = 'mi
 declare class PrescriptionUnderstandingService {
     private readonly understandingService;
     constructor(config: PrescriptionUnderstandingConfig);
-    understand(prescriptionOCRInput: OCRInput): Promise<PrescriptionDocument>;
+    understand(prescriptionOCRInput: OCRInput): Promise<PrescriptionDocuments>;
 }
 
 interface MistralOptions {
@@ -56,4 +57,4 @@ interface MistralOptions {
 }
 declare function MistralPrescriptionUnderstanding(options: MistralOptions): PrescriptionUnderstandingService;
 
-export { type MistralOptions, MistralPrescriptionUnderstanding, type PrescriptionDocument, type PrescriptionUnderstandingConfig, PrescriptionUnderstandingService, OCRInput as ProcessPrescriptionInput };
+export { type MistralOptions, MistralPrescriptionUnderstanding, type PrescriptionDocument, type PrescriptionDocuments, type PrescriptionUnderstandingConfig, PrescriptionUnderstandingService, OCRInput as ProcessPrescriptionInput };

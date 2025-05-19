@@ -15,7 +15,7 @@ The library provides a high-level service for extracting structured data from pr
 
 ```ts
 import { MistralPrescriptionUnderstanding } from 'document-understanding/prescription';
-import type { PrescriptionDocument } from 'document-understanding/prescription';
+import type { PrescriptionDocuments } from 'document-understanding/prescription';
 import type { OCRInput } from 'document-understanding';
 
 const service = MistralPrescriptionUnderstanding({
@@ -30,7 +30,7 @@ const base64ImageInput: OCRInput = {
   documentType: 'image',
 };
 
-const result: PrescriptionDocument = await service.understand(base64ImageInput);
+const result: PrescriptionDocuments = await service.understand(base64ImageInput);
 ```
 
 More [OCRInput examples](docs/ocr-inputs-examples.md)

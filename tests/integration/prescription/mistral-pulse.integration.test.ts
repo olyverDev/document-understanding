@@ -1,0 +1,92 @@
+import fs from 'fs';
+import path from 'path';
+
+import type { OCRInput } from '../../../src';
+import { MistralPrescriptionUnderstanding } from '../../../src/domains/prescription';
+import type { PrescriptionDocument } from '../../../src/domains/prescription';
+
+const prescriptionVerificationMode = process.env.PRESCRIPTION_VERIFICATION_MODE;
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+
+const FIXTURES_ROOT = path.resolve(__dirname, './fixtures');
+
+const testCases = fs
+  .readdirSync(FIXTURES_ROOT, { withFileTypes: true })
+  .filter((dirent) => dirent.isDirectory())
+  .map((dirent) => {
+    const name = dirent.name;
+    const dir = path.join(FIXTURES_ROOT, name);
+
+    const imagePath = path.join(dir, 'input.jpg');
+    const expectedPath = path.join(dir, 'expected.json');
+
+    if (!fs.existsSync(imagePath)) throw new Error(`Missing input.jpg in ${dir}`);
+    if (!fs.existsSync(expectedPath)) throw new Error(`Missing expected.json in ${dir}`);
+
+    return {
+      name,
+      base64: fs.readFileSync(imagePath, 'base64'),
+      expected: JSON.parse(fs.readFileSync(expectedPath, 'utf-8')),
+    };
+  });
+
+const pickPrescriptionCriticalFields = (prescriptionDocument: PrescriptionDocument) => ({
+  patient: {
+    firstName: prescriptionDocument.patient.firstName,
+    lastName: prescriptionDocument.patient.lastName,
+    // FIXME: birthdate sometimes 0000-00-00 or 1990
+  },
+  prescription: {
+    right: prescriptionDocument.prescription.right,
+    left: prescriptionDocument.prescription.left,
+  },
+});
+
+describe('Mistral OCR + Structuring — Integration Suite', () => {
+  if (!MISTRAL_API_KEY) {
+    throw new Error('MISTRAL_API_KEY is required for integration tests');
+  }
+
+  const service = MistralPrescriptionUnderstanding({
+    apiKey: MISTRAL_API_KEY,
+  });
+
+  testCases.forEach(({ name, base64, expected }) => {
+    it(
+      `${name}`,
+      async () => {
+        const input: OCRInput = {
+          source: 'base64',
+          file: base64,
+          documentType: 'image',
+        };
+        const result = await service.understand(input);
+
+        switch (prescriptionVerificationMode) {
+          case 'strict': {
+            expect(result).toEqual(expected);
+            break;
+          }
+          default: {
+            expect(result.length).toBe(expected.length);
+
+            result.forEach((actual, index) => {
+              expect(
+                pickPrescriptionCriticalFields(actual)
+              ).toEqual(
+                pickPrescriptionCriticalFields(expected[index])
+              );
+
+              // NOTE: verify prescriberName at least similar
+              expect(
+                actual?.prescriber?.fullName?.includes(expected[index]?.prescriber?.fullName) ||
+                expected[index]?.prescriber?.fullName?.includes( actual.prescriber.fullName)
+              ).toBe(true);
+            });
+          }
+        }
+      },
+      20000
+    );
+  });
+});

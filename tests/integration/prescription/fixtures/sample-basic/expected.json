@@ -1,0 +1,43 @@
+[
+  {
+    "patient": {
+      "firstName": "",
+      "lastName": "",
+      "birthdate": ""
+    },
+    "prescriber": {
+      "fullName": "Dr. Perricone",
+      "address": "1 Main Street, San Diego, CA",
+      "email": "",
+      "adeliNumber": ""
+    },
+    "prescription": {
+      "prescribedAt": "",
+      "expirationDate": "",
+      "right": {
+        "sphere": -4,
+        "cylinder": 0,
+        "axis": 0,
+        "base": "DOWN",
+        "add": 2,
+        "deg": 0,
+        "pd": 0,
+        "va": "",
+        "visionType": "VL"
+      },
+      "left": {
+        "sphere": -5,
+        "cylinder": -0.5,
+        "axis": 180,
+        "base": "UP",
+        "add": 2,
+        "deg": 0,
+        "pd": 0,
+        "va": "",
+        "visionType": "VL"
+      },
+      "treatment": "",
+      "tint": ""
+    }
+  }
+]

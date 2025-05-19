@@ -7,7 +7,7 @@ describe('Library real-world integration', () => {
   it(
     'parses a real base64 image input using Mistral OCR and structuring',
     async () => {
-      const imagePath = path.resolve(__dirname, '../assets/sample.jpg');
+      const imagePath = path.resolve(__dirname, './assets/sample.jpg');
       const base64 = fs.readFileSync(imagePath, 'base64');
 
       const input = {
