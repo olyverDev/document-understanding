@@ -7,7 +7,6 @@ var DocumentUnderstandingService = class {
   async understand(input, options) {
     const text = await this.ocr.recognizeText(input);
     if (!text) throw new Error("OCR returned no text");
-    await new Promise((resolve) => setTimeout(resolve, 1e3));
     return this.textStructuring.parse({
       text,
       prompt: options.prompt,
