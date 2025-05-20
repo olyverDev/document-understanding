@@ -58,7 +58,9 @@ export class MistralOCR implements OCR {
       const response = await this.client.ocr.process({
         model: this.modelName,
         document: this.convertOCRInputToDocumentContentChunk(input),
-        // includeImageBase64: true,
+        includeImageBase64: false,
+        imageLimit: null,
+        imageMinSize: null, 
       });
 
       const resultMarkdown = response?.pages?.[0]?.markdown || null;
@@ -66,6 +68,8 @@ export class MistralOCR implements OCR {
       if (!resultMarkdown) {
         throw new OCRProcessingError('No markdown content found in the Mistral OCR response', response);
       }
+
+      console.log({ resultMarkdown });
 
       return resultMarkdown;
     } catch (error) {
