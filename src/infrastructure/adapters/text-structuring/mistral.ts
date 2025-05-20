@@ -92,6 +92,6 @@ export const MistralTextStructuringFactory = <T>(
 ): TextStructuring<T> => {
   const client = getMistralSingletonClient({ apiKey: config.apiKey });
   return new MistralTextStructuring<T>(client, {
-    model: config.model ?? 'mistral-small-latest',
+    model: config.model ?? 'mistral-medium-latest',
   });
 };
