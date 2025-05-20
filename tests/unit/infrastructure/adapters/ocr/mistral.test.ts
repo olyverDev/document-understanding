@@ -57,6 +57,9 @@ describe('MistralOCR', () => {
         type: 'image_url',
         imageUrl: 'data:image/jpeg;base64,img==',
       },
+      imageLimit: null,
+      imageMinSize: null,
+      includeImageBase64: false,
     });
   });
 
@@ -74,6 +77,9 @@ describe('MistralOCR', () => {
         type: 'document_url',
         documentUrl: 'data:application/pdf;base64,pdf==',
       },
+      imageLimit: null,
+      imageMinSize: null,
+      includeImageBase64: false,
     });
   });
 
@@ -91,6 +97,9 @@ describe('MistralOCR', () => {
         type: 'image_url',
         imageUrl: 'https://example.com/img.jpg',
       },
+      imageLimit: null,
+      imageMinSize: null,
+      includeImageBase64: false,
     });
   });
 
@@ -108,6 +117,9 @@ describe('MistralOCR', () => {
         type: 'document_url',
         documentUrl: 'https://example.com/file.pdf',
       },
+      imageLimit: null,
+      imageMinSize: null,
+      includeImageBase64: false,
     });
   });
 

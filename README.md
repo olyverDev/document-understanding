@@ -21,7 +21,7 @@ import type { OCRInput } from 'document-understanding';
 const service = MistralPrescriptionUnderstanding({
   apiKey: 'sk-...',
   OCRModel: 'mistral-ocr-latest', // optional
-  textStructuringModel: 'mistral-large-latest', // optional
+  textStructuringModel: 'mistral-medium-latest', // optional
 });
 
 const base64ImageInput: OCRInput = {

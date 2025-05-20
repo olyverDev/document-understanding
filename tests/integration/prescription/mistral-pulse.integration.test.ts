@@ -8,7 +8,7 @@ import type { PrescriptionDocument } from '../../../src/domains/prescription';
 const prescriptionVerificationMode = process.env.PRESCRIPTION_VERIFICATION_MODE;
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
-const FIXTURES_ROOT = path.resolve(__dirname, './fixtures');
+const FIXTURES_ROOT = path.resolve(__dirname, process.env.FIXTURES_ROOT || './fixtures');
 
 const testCases = fs
   .readdirSync(FIXTURES_ROOT, { withFileTypes: true })
@@ -17,10 +17,15 @@ const testCases = fs
     const name = dirent.name;
     const dir = path.join(FIXTURES_ROOT, name);
 
-    const imagePath = path.join(dir, 'input.jpg');
+    let imagePath = path.join(dir, 'input.jpg');
     const expectedPath = path.join(dir, 'expected.json');
 
-    if (!fs.existsSync(imagePath)) throw new Error(`Missing input.jpg in ${dir}`);
+    // FIXME: add table tests or just not use png or just smth more clever
+    if (!fs.existsSync(imagePath)) {
+      imagePath = path.join(dir, 'input.png');
+    }
+
+    if (!fs.existsSync(imagePath)) throw new Error(`Missing input image in ${dir}`);
     if (!fs.existsSync(expectedPath)) throw new Error(`Missing expected.json in ${dir}`);
 
     return {
@@ -32,13 +37,13 @@ const testCases = fs
 
 const pickPrescriptionCriticalFields = (prescriptionDocument: PrescriptionDocument) => ({
   patient: {
-    firstName: prescriptionDocument.patient.firstName,
-    lastName: prescriptionDocument.patient.lastName,
+    firstName: prescriptionDocument?.patient?.firstName,
+    lastName: prescriptionDocument?.patient?.lastName,
     // FIXME: birthdate sometimes 0000-00-00 or 1990
   },
   prescription: {
-    right: prescriptionDocument.prescription.right,
-    left: prescriptionDocument.prescription.left,
+    right: prescriptionDocument?.prescription?.right,
+    left: prescriptionDocument?.prescription?.left,
   },
 });
 
@@ -77,10 +82,10 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
                 pickPrescriptionCriticalFields(expected[index])
               );
 
-              // NOTE: verify prescriberName at least similar
+              // NOTE: verify  that prescriber at least similar
               expect(
-                actual?.prescriber?.fullName?.includes(expected[index]?.prescriber?.fullName) ||
-                expected[index]?.prescriber?.fullName?.includes( actual.prescriber.fullName)
+                actual?.prescriber?.includes(expected[index]?.prescriber) ||
+                expected[index]?.prescriber?.includes(actual.prescriber)
               ).toBe(true);
             });
           }

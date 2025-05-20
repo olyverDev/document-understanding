@@ -5,11 +5,6 @@ interface EyePrescription {
     sphere: number;
     cylinder: number;
     axis: number;
-    add?: number;
-    deg?: number;
-    base?: "IN" | "OUT" | "UP" | "DOWN";
-    pd?: number;
-    va?: string;
 }
 interface PrescriptionDocument {
     patient: {
@@ -17,19 +12,11 @@ interface PrescriptionDocument {
         lastName: string;
         birthdate?: string;
     };
-    prescriber: {
-        fullName: string;
-        email?: string;
-        address?: string;
-        adeliNumber?: string;
-    };
+    prescriber: string;
     prescription: {
         prescribedAt: string;
-        expirationDate?: string;
         right: EyePrescription;
         left: EyePrescription;
-        treatment?: string;
-        tint?: string;
     };
 }
 type PrescriptionDocuments = PrescriptionDocument[];

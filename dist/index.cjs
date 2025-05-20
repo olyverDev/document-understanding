@@ -112,13 +112,16 @@ var MistralOCR = class {
     try {
       const response = await this.client.ocr.process({
         model: this.modelName,
-        document: this.convertOCRInputToDocumentContentChunk(input)
-        // includeImageBase64: true,
+        document: this.convertOCRInputToDocumentContentChunk(input),
+        includeImageBase64: false,
+        imageLimit: null,
+        imageMinSize: null
       });
       const resultMarkdown = response?.pages?.[0]?.markdown || null;
       if (!resultMarkdown) {
         throw new OCRProcessingError("No markdown content found in the Mistral OCR response", response);
       }
+      console.log({ resultMarkdown });
       return resultMarkdown;
     } catch (error) {
       if (error instanceof OCRProcessingError) {
@@ -205,7 +208,7 @@ var MistralTextStructuring = class {
 var MistralTextStructuringFactory = (config) => {
   const client = getMistralSingletonClient({ apiKey: config.apiKey });
   return new MistralTextStructuring(client, {
-    model: config.model ?? "mistral-small-latest"
+    model: config.model ?? "mistral-medium-latest"
   });
 };
 

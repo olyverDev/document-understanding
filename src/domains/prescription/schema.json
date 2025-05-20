@@ -14,7 +14,7 @@
         "properties": {
           "firstName": {
             "type": "string",
-            "description": "Patient's first name."
+            "description": "Patient's first name. May start with Madam, Monsieur or similar"
           },
           "lastName": {
             "type": "string",
@@ -32,30 +32,8 @@
         "additionalProperties": false
       },
       "prescriber": {
-        "type": "object",
-        "description": "Information about the prescriber.",
-        "properties": {
-          "fullName": {
-            "type": "string",
-            "description": "Full name of the prescriber/doctor."
-          },
-          "email": {
-            "type": "string",
-            "description": "Prescriber's email address."
-          },
-          "address": {
-            "type": "string",
-            "description": "Address of the prescriber's office."
-          },
-          "adeliNumber": {
-            "type": "string",
-            "description": "ADELI identification number, format: 0-9 digits."
-          }
-        },
-        "required": [
-          "fullName"
-        ],
-        "additionalProperties": false
+        "type": "string",
+        "description": "Full name of the prescriber/doctor. May start with Dr, Docteur or similar."
       },
       "prescription": {
         "type": "object",
@@ -64,10 +42,6 @@
           "prescribedAt": {
             "type": "string",
             "description": "Date when prescription was issued in YYYY-MM-DD format."
-          },
-          "expirationDate": {
-            "type": "string",
-            "description": "End date of validity period in YYYY-MM-DD format."
           },
           "right": {
             "type": "object",
@@ -92,32 +66,6 @@
               "axis": {
                 "type": "number",
                 "description": "Axis value, range from 0 to 180."
-              },
-              "add": {
-                "type": "number",
-                "description": "Addition value, range from 0 to 4."
-              },
-              "deg": {
-                "type": "number",
-                "description": "Degression value, range from 0 to 360."
-              },
-              "base": {
-                "type": "string",
-                "enum": [
-                  "IN",
-                  "OUT",
-                  "UP",
-                  "DOWN"
-                ],
-                "description": "Direction of the base."
-              },
-              "pd": {
-                "type": "number",
-                "description": "Pupillary distance in mm for right eye."
-              },
-              "va": {
-                "type": "string",
-                "description": "Visual acuity for right eye."
               }
             },
             "required": [
@@ -151,32 +99,6 @@
               "axis": {
                 "type": "number",
                 "description": "Axis value, range from 0 to 180."
-              },
-              "add": {
-                "type": "number",
-                "description": "Addition value, range from 0 to 4."
-              },
-              "deg": {
-                "type": "number",
-                "description": "Degression value, range from 0 to 360."
-              },
-              "base": {
-                "type": "string",
-                "enum": [
-                  "IN",
-                  "OUT",
-                  "UP",
-                  "DOWN"
-                ],
-                "description": "Direction of the base."
-              },
-              "pd": {
-                "type": "number",
-                "description": "Pupillary distance in mm for left eye."
-              },
-              "va": {
-                "type": "string",
-                "description": "Visual acuity for left eye."
               }
             },
             "required": [
@@ -186,27 +108,16 @@
               "axis"
             ],
             "additionalProperties": false
-          },
-          "treatment": {
-            "type": "string",
-            "description": "Special treatments or filters for lenses."
-          },
-          "tint": {
-            "type": "string",
-            "description": "Color or tint applied to lenses."
           }
         },
         "required": [
-          "prescribedAt",
-          "right",
-          "left"
+          "prescribedAt"
         ],
         "additionalProperties": false
       }
     },
     "required": [
       "patient",
-      "prescriber",
       "prescription"
     ],
     "additionalProperties": false

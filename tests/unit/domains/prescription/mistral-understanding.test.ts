@@ -19,7 +19,7 @@ jest.mock('../../../../src/infrastructure/providers/text-structuring', () => ({
 describe('MistralPrescriptionUnderstanding', () => {
   const mockApiKey = 'sk-test';
   const mockOCRModel = 'mistral-ocr-latest';
-  const mockTextModel = 'mistral-small-latest';
+  const mockTextModel = 'mistral-medium-latest';
 
   beforeEach(() => {
     jest.clearAllMocks();

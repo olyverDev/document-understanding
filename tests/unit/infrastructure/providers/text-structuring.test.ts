@@ -24,7 +24,7 @@ describe('TextStructuringProvidersRegistry', () => {
     expect(textStructuring).toBeInstanceOf(MistralTextStructuring);
   });
 
-  it('defaults to `mistral-small-latest` if model not provided', () => {
+  it('defaults to `mistral-medium-latest` if model not provided', () => {
     const textStructuring = TextStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({
       apiKey: mockApiKey,
     });
