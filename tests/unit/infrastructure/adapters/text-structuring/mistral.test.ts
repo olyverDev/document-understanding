@@ -3,7 +3,7 @@ import { Mistral } from '@mistralai/mistralai';
 import { TextStructuringError } from '../../../../../src/errors/text-structuring';
 import { MistralTextStructuring } from '../../../../../src/infrastructure/adapters/text-structuring/mistral';
 
-describe('MistralTextStructuring', () => {
+describe('MistralTextStructuringAdapter', () => {
   const mockProcess = jest.fn();
   const mockClient = {
     chat: {
@@ -30,7 +30,7 @@ describe('MistralTextStructuring', () => {
       choices: [{ message: { content: JSON.stringify(expected) } }],
     });
 
-    const result = await adapter.parse({ prompt, text });
+    const result = await adapter.parse(text, { prompt });
     expect(result).toEqual(expected);
     expect(mockProcess).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -57,7 +57,7 @@ describe('MistralTextStructuring', () => {
       additionalProperties: false,
     };
 
-    const result = await adapter.parse({ prompt, text, outputSchema: schema });
+    const result = await adapter.parse(text, { prompt, outputSchema: schema });
     expect(result).toEqual(expected);
     expect(mockProcess).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -78,7 +78,7 @@ describe('MistralTextStructuring', () => {
       choices: [{ message: { content: null } }],
     });
 
-    await expect(adapter.parse({ prompt, text })).rejects.toThrow(TextStructuringError);
+    await expect(adapter.parse(text, { prompt })).rejects.toThrow(TextStructuringError);
   });
 
   it('throws a TextStructuringError on invalid JSON', async () => {
@@ -86,19 +86,19 @@ describe('MistralTextStructuring', () => {
       choices: [{ message: { content: '{ broken json' } }],
     });
 
-    await expect(adapter.parse({ prompt, text })).rejects.toThrow(TextStructuringError);
+    await expect(adapter.parse(text, { prompt })).rejects.toThrow(TextStructuringError);
   });
 
   it('rethrows TextStructuringError as-is', async () => {
     const error = new TextStructuringError('Already wrapped');
     mockProcess.mockRejectedValueOnce(error);
 
-    await expect(adapter.parse({ prompt, text })).rejects.toBe(error);
+    await expect(adapter.parse(text, { prompt })).rejects.toBe(error);
   });
 
   it('throws TextStructuringError on unexpected SDK errors', async () => {
     mockProcess.mockRejectedValueOnce(new Error('Boom'));
 
-    await expect(adapter.parse({ prompt, text })).rejects.toThrow(TextStructuringError);
+    await expect(adapter.parse(text, { prompt })).rejects.toThrow(TextStructuringError);
   });
 });

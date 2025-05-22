@@ -12,9 +12,13 @@
         "type": "object",
         "description": "Information about the patient.",
         "properties": {
+          "title": {
+            "type": "string",
+            "description": "Optional honorific such as 'Mr', 'Mrs', or 'Ms', extracted from salutations like 'Madame', 'Monsieur', 'M.', 'Mme'. Leave as empty string if not found."
+          },
           "firstName": {
             "type": "string",
-            "description": "Patient's first name. May start with Madam, Monsieur or similar"
+            "description": "Patient's first name. May be composed of multiple parts. Salutations like 'Madame', 'Monsieur' must be excluded."
           },
           "lastName": {
             "type": "string",

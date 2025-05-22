@@ -1,6 +1,6 @@
 ## Adding a new Provider
 
-To add a new provider (e.g. `openai`, `tesseract`) to the system, implement one or both adapters (`OCR` and/or `TextStructuring`) and register them in the corresponding provider registries.
+To add a new provider (e.g. `openai`, `tesseract`) to the system, implement needed adapters (`VisualStructuring` or `OCR` + `TextStructuring`) and register them in the corresponding provider registries.
 
 ### 1. Add the provider key
 
@@ -19,36 +19,7 @@ export type ProviderName = typeof Providers[keyof typeof Providers];
 
 ---
 
-### 2. Implement the OCR adapter (if applicable)
-
-Create a file:
-
-```
-src/infrastructure/adapters/ocr/openai.ts
-```
-
-Implement the `OCR` interface:
-
-```ts
-import type { OCR, OCRInput } from '../../../ports/ocr';
-
-export class OpenAIOCR implements OCR {
-  constructor(private readonly config: { token: string; model?: string }) {}
-
-  async recognizeText(input: OCRInput): Promise<string | null> {
-    // Implement OpenAI OCR logic
-    return '...';
-  }
-}
-
-export const OpenAICRFactory = (config: { token: string; model?: string }): OCR => {
-  return new OpenAIOCR(config);
-};
-```
-
----
-
-### 3. Implement the TextStructuring adapter (if applicable)
+### 2. Implement the TextStructuring adapter (or any other)
 
 Create a file:
 
@@ -77,22 +48,7 @@ export const OpenAITextStructuringFactory = <T>(config: { token: string; model?:
 
 ---
 
-### 4. Register the OCR provider
-
-In `src/infrastructure/providers/ocr.ts`:
-
-```ts
-import { OpenaiOCRFactory } from '../adapters/ocr/openai';
-
-export const OCRProvidersRegistry = {
-  mistral: mistralOCRFactory,
-  openai: OpenaiOCRFactory, // 👈 Add this
-} as const;
-```
-
----
-
-### 5. Register the TextStructuring provider
+### 3. Register new TextStructuring provider
 
 In `src/infrastructure/providers/text-structuring.ts`:
 
@@ -109,22 +65,7 @@ export const TextStructuringProvidersRegistry = {
 
 ### 6. Use the new provider
 
-You can now use the new provider in your factory:
-
-```ts
-import { Providers } from '...';
-
-const service = DocumentUnderstandingServiceFactory<OpenAISchema>({
-  ocr: {
-    provider: Providers.OpenAI,
-    config: { token: 'sk-xxx', model: 'gpt-4-vision' },
-  },
-  textStructuring: {
-    provider: Providers.OpenAI,
-    config: { token: 'sk-xxx', model: 'gpt-4' },
-  },
-});
-```
+You can now use the new provider like described [here](./custom-usage.md)
 
 ---
 
@@ -136,5 +77,5 @@ To add a provider:
 3. Register in the relevant registry
 4. Done — the type system will infer config shape and usage
 
-### Different Providers for OCR and TextStructuring
-You can add different providers for `OCR` and `TextStructuring` (e.g. Tesseract and OpenAI respectively). Document understanding is a two-step pipeline and can involve multiple technologies.
+### Different Providers for OCR + TextUnderstanding
+You can add different providers for `OCR` and `TextStructuring` (e.g. Tesseract and OpenAI respectively). OCR + TextUnderstanding is a two-step pipeline and can involve multiple technologies.

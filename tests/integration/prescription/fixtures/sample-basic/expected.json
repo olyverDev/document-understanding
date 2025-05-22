@@ -1,6 +1,7 @@
 [
   {
     "patient": {
+      "title": "",
       "firstName": "",
       "lastName": "",
       "birthdate": ""
@@ -9,16 +10,16 @@
     "prescription": {
       "prescribedAt": "",
       "right": {
-        "sphere": -4,
+        "visionType": "VL",
+        "sphere": -4.0,
         "cylinder": 0,
-        "axis": 0,
-        "visionType": "VL"
+        "axis": 0
       },
       "left": {
-        "sphere": -5,
+        "visionType": "VL",
+        "sphere": -5.0,
         "cylinder": -0.5,
-        "axis": 180,
-        "visionType": "VL"
+        "axis": 180
       }
     }
   }

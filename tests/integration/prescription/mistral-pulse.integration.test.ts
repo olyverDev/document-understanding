@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import type { OCRInput } from '../../../src';
+import type { VisualDocument } from '../../../src';
 import { MistralPrescriptionUnderstanding } from '../../../src/domains/prescription';
 import type { PrescriptionDocument } from '../../../src/domains/prescription';
 
@@ -60,7 +60,7 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
     it(
       `${name}`,
       async () => {
-        const input: OCRInput = {
+        const input: VisualDocument = {
           source: 'base64',
           file: base64,
           documentType: 'image',
