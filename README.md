@@ -4,27 +4,27 @@ A modular, type-safe OCR + AI-powered document understanding library written in 
 
 Currently supports parsing **Eye Prescriptions** photos/documents using the Mistral API with pluggable OCR and schema-based JSON validation. Designed for extensibility to support other document types and Providers.
 
-
 ## Usage
 
-### Prescription as Domain
+### Domains
 
-The library provides a high-level service for extracting structured data from prescription documents using OCR and LLM-based text structuring. You can create a reusable instance using the built-in Mistral-powered factory.
+#### Prescription
+
+The library provides a high-level service factory for extracting structured data from prescription documents using LLM-based document/text structuring and OCR. You can create a reusable instance using the built-in Mistral-powered factory.
 
 #### Using `MistralPrescriptionUnderstanding`
 
 ```ts
 import { MistralPrescriptionUnderstanding } from 'document-understanding/prescription';
 import type { PrescriptionDocuments } from 'document-understanding/prescription';
-import type { OCRInput } from 'document-understanding';
+import type { VisualDocument } from 'document-understanding';
 
 const service = MistralPrescriptionUnderstanding({
   apiKey: 'sk-...',
-  OCRModel: 'mistral-ocr-latest', // optional
-  textStructuringModel: 'mistral-medium-latest', // optional
+  model: 'mistral-medium-latest', // optional
 });
 
-const base64ImageInput: OCRInput = {
+const base64ImageInput: VisualDocument = {
   source: 'base64',
   file: '...base64-encoded-image...',
   documentType: 'image',
@@ -33,7 +33,7 @@ const base64ImageInput: OCRInput = {
 const result: PrescriptionDocuments = await service.understand(base64ImageInput);
 ```
 
-More [OCRInput examples](docs/ocr-inputs-examples.md)
+More [VisualDocument examples](docs/inputs.md)
 
 ### Prescription domain-specific context
 
@@ -41,34 +41,30 @@ More [OCRInput examples](docs/ocr-inputs-examples.md)
 
 [Prescription JSON Schema](src/domains/prescription/schema.json)
 
+## Build & Scripts notes
+
+See [build-notes.md](docs/build-notes.md) for development notes.
+
 ## Features
 
 See [features.md](docs/features.md) for feature list library provides
 
-### Custom Document Understanding (Generic Engine)
+### Building a pipeline of a custom Document Understanding
 
-See [document understanding engine](docs/custom-usage.md) docs
+See [custom usage](docs/building-pipeline.md) docs
 
+### Engine Variants
 
-## Architecture
-
-See [architecture.md](docs/architecture.md) for architectural notes
-
+See [engine variants](docs/engine.md) docs
 
 ## Supported Providers
 
-### OCR
-- MistralOCR (via `@mistralai/mistralai`) as `OCR` | [Document OCR processor](https://docs.mistral.ai/capabilities/document/#document-ocr-processor)
-
-### Text Structuring
-- [Mistral Document Understanding](https://docs.mistral.ai/capabilities/document/#document-understanding) as `TextStructuring` (LLM completions using `responseFormat: 'json_schema' | 'json_object'`)
-
+See [supported providers](docs/providers.md) section
 
 ## Adding a new Provider
 
 See [adding-provider.md](docs/adding-provider.md) for instructions on adding new providers.
 
+## Architecture
 
-## Build & Scripts notes
-
-See [build-notes.md](docs/development-notes.md) for development notes.
+See [architecture.md](docs/architecture.md) for architectural notes and source code structure
