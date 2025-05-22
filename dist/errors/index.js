@@ -15,8 +15,18 @@ var TextStructuringError = class extends Error {
     this.name = "TextStructuringError";
   }
 };
+
+// src/errors/visual-structuring.ts
+var VisualStructuringError = class extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.cause = cause;
+    this.name = "VisualStructuringError";
+  }
+};
 export {
   OCRProcessingError,
-  TextStructuringError
+  TextStructuringError,
+  VisualStructuringError
 };
 //# sourceMappingURL=index.js.map
