@@ -2,9 +2,9 @@ import type { Mistral } from '@mistralai/mistralai';
 
 import { OCRProcessingError } from '../../../../../src/errors/ocr';
 import { MistralOCR } from '../../../../../src/infrastructure/adapters/ocr/mistral';
-import type { OCRInput } from '../../../../../src/ports/ocr';
+import type { VisualDocument } from '../../../../../src/typings/visual-document';
 
-describe('MistralOCR', () => {
+describe('MistralOCRAdapter', () => {
   const mockProcess = jest.fn();
   const mockClient = {
     ocr: {
@@ -15,25 +15,25 @@ describe('MistralOCR', () => {
   const modelName = 'mistral-ocr-latest';
   const adapter = new MistralOCR(mockClient, { model: modelName });
 
-  const base64Image: OCRInput = {
+  const base64Image: VisualDocument = {
     source: 'base64',
     file: 'img==',
     documentType: 'image',
   };
 
-  const base64Pdf: OCRInput = {
+  const base64Pdf: VisualDocument = {
     source: 'base64',
     file: 'pdf==',
     documentType: 'pdf',
   };
 
-  const urlImage: OCRInput = {
+  const urlImage: VisualDocument = {
     source: 'url',
     file: 'https://example.com/img.jpg',
     documentType: 'image',
   };
 
-  const urlPdf: OCRInput = {
+  const urlPdf: VisualDocument = {
     source: 'url',
     file: 'https://example.com/file.pdf',
     documentType: 'pdf',
@@ -143,7 +143,7 @@ describe('MistralOCR', () => {
   });
 
   it('throws for unsupported input combo', () => {
-    const invalid: OCRInput = {
+    const invalid: VisualDocument = {
       // @ts-expect-error unsupported source
       source: 'blob',
       file: '',
@@ -151,7 +151,7 @@ describe('MistralOCR', () => {
     };
 
     expect(() =>
-      adapter['convertOCRInputToDocumentContentChunk'](invalid)
+      adapter['convertVisualDocumentToDocumentContentChunk'](invalid)
     ).toThrow();
   });
 });
