@@ -8,4 +8,9 @@ declare class TextStructuringError extends Error {
     constructor(message: string, cause?: unknown | undefined);
 }
 
-export { OCRProcessingError, TextStructuringError };
+declare class VisualStructuringError extends Error {
+    cause?: unknown | undefined;
+    constructor(message: string, cause?: unknown | undefined);
+}
+
+export { OCRProcessingError, TextStructuringError, VisualStructuringError };

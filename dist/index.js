@@ -1,16 +1,14 @@
-// src/engine/document-understanding.ts
+// src/core/service.ts
 var DocumentUnderstandingService = class {
-  constructor(ocr, textStructuring) {
-    this.ocr = ocr;
-    this.textStructuring = textStructuring;
+  constructor(engine, prompt, outputSchema) {
+    this.engine = engine;
+    this.prompt = prompt;
+    this.outputSchema = outputSchema;
   }
-  async understand(input, options) {
-    const text = await this.ocr.recognizeText(input);
-    if (!text) throw new Error("OCR returned no text");
-    return this.textStructuring.parse({
-      text,
-      prompt: options.prompt,
-      outputSchema: options.outputSchema
+  async understand(document) {
+    return this.engine.understand(document, {
+      prompt: this.prompt,
+      outputSchema: this.outputSchema
     });
   }
 };
@@ -51,7 +49,7 @@ var MistralOCR = class {
     this.client = client;
     this.modelName = config.model;
   }
-  convertOCRInputToDocumentContentChunk(input) {
+  convertVisualDocumentToDocumentContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
       "base64:image": {
@@ -82,7 +80,7 @@ var MistralOCR = class {
     try {
       const response = await this.client.ocr.process({
         model: this.modelName,
-        document: this.convertOCRInputToDocumentContentChunk(input),
+        document: this.convertVisualDocumentToDocumentContentChunk(input),
         includeImageBase64: false,
         imageLimit: null,
         imageMinSize: null
@@ -91,7 +89,6 @@ var MistralOCR = class {
       if (!resultMarkdown) {
         throw new OCRProcessingError("No markdown content found in the Mistral OCR response", response);
       }
-      console.log({ resultMarkdown });
       return resultMarkdown;
     } catch (error) {
       if (error instanceof OCRProcessingError) {
@@ -126,10 +123,9 @@ var MistralTextStructuring = class {
     this.client = client;
     this.modelName = config.model;
   }
-  async parse({
-    text,
+  async parse(text, {
     prompt,
-    outputSchema = null
+    outputSchema
   }) {
     const messageContent = [
       { type: "text", text: prompt },
@@ -187,19 +183,121 @@ var TextStructuringProvidersRegistry = {
   [Providers.Mistral]: MistralTextStructuringFactory
 };
 
-// src/engine/document-understanding-factory.ts
-function DocumentUnderstandingServiceFactory(config) {
-  const ocrAdapter = OCRProvidersRegistry[config.ocr.provider](config.ocr.config);
-  const textStructuringAdapter = TextStructuringProvidersRegistry[config.textStructuring.provider](
-    config.textStructuring.config
-  );
-  return new DocumentUnderstandingService(ocrAdapter, textStructuringAdapter);
+// src/errors/visual-structuring.ts
+var VisualStructuringError = class extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.cause = cause;
+    this.name = "VisualStructuringError";
+  }
+};
+
+// src/infrastructure/adapters/visual-structuring/mistral.ts
+var MistralVisualStructuring = class {
+  constructor(client, config) {
+    this.client = client;
+    this.modelName = config.model;
+  }
+  getBase64MimeAndExtension(base64) {
+    const match = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+    if (match) {
+      const mime = match[1];
+      const ext = mime.split("/")[1];
+      const content = match[2];
+      return { mime, ext, content };
+    }
+    return { mime: "image/jpeg", ext: "jpg", content: base64 };
+  }
+  convertVisualDocumentToContentChunk(input) {
+    const { source, file, documentType } = input;
+    const strategies = {
+      "base64:pdf": () => ({
+        type: "document_url",
+        documentUrl: `data:application/pdf;base64,${file}`
+      }),
+      "base64:image": () => {
+        const { mime, content } = this.getBase64MimeAndExtension(file);
+        return {
+          type: "image_url",
+          imageUrl: `data:${mime};base64,${content}`
+        };
+      },
+      "url:pdf": () => ({
+        type: "document_url",
+        documentUrl: file
+      }),
+      "url:image": () => ({
+        type: "image_url",
+        imageUrl: file
+      })
+    };
+    const currentStrategy = `${source}:${documentType}`;
+    const resolve = strategies[currentStrategy];
+    if (!resolve) {
+      throw new Error(`Unsupported OCR input source: ${source}, type: ${documentType}`);
+    }
+    return resolve();
+  }
+  async parse(input, {
+    prompt,
+    outputSchema
+  }) {
+    const contentChunk = this.convertVisualDocumentToContentChunk(input);
+    const messageContent = [
+      { type: "text", text: prompt },
+      contentChunk
+    ];
+    try {
+      const response = await this.client.chat.complete({
+        model: this.modelName,
+        messages: [
+          {
+            role: "user",
+            content: messageContent
+          }
+        ],
+        responseFormat: outputSchema ? {
+          type: "json_schema",
+          jsonSchema: {
+            strict: true,
+            schemaDefinition: outputSchema,
+            name: outputSchema.title,
+            description: outputSchema.description
+          }
+        } : {
+          type: "json_object"
+        }
+      });
+      const raw = response?.choices?.[0]?.message?.content;
+      if (typeof raw !== "string") {
+        throw new VisualStructuringError("Expected response to be a string.");
+      }
+      return JSON.parse(raw);
+    } catch (error) {
+      if (error instanceof VisualStructuringError) {
+        throw error;
+      }
+      const message = error instanceof SyntaxError ? "Failed to parse response as JSON" : error.message;
+      throw new VisualStructuringError(message, error);
+    }
+  }
+};
+function MistralVisualStructuringFactory(config) {
+  const client = getMistralSingletonClient({ apiKey: config.apiKey });
+  return new MistralVisualStructuring(client, {
+    model: config.model ?? "mistral-medium-latest"
+  });
 }
+
+// src/infrastructure/providers/visual-structuring.ts
+var VisualStructuringProvidersRegistry = {
+  [Providers.Mistral]: MistralVisualStructuringFactory
+};
 export {
   DocumentUnderstandingService,
-  DocumentUnderstandingServiceFactory,
   OCRProvidersRegistry,
   Providers,
-  TextStructuringProvidersRegistry
+  TextStructuringProvidersRegistry,
+  VisualStructuringProvidersRegistry
 };
 //# sourceMappingURL=index.js.map

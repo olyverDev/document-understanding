@@ -20,10 +20,24 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/domains/prescription/index.ts
 var prescription_exports = {};
 __export(prescription_exports, {
-  MistralPrescriptionUnderstanding: () => MistralPrescriptionUnderstanding,
-  PrescriptionUnderstandingService: () => PrescriptionUnderstandingService
+  MistralPrescriptionUnderstanding: () => MistralPrescriptionUnderstanding
 });
 module.exports = __toCommonJS(prescription_exports);
+
+// src/core/service.ts
+var DocumentUnderstandingService = class {
+  constructor(engine, prompt, outputSchema) {
+    this.engine = engine;
+    this.prompt = prompt;
+    this.outputSchema = outputSchema;
+  }
+  async understand(document) {
+    return this.engine.understand(document, {
+      prompt: this.prompt,
+      outputSchema: this.outputSchema
+    });
+  }
+};
 
 // src/infrastructure/providers/variants.ts
 var Providers = {
@@ -61,7 +75,7 @@ var MistralOCR = class {
     this.client = client;
     this.modelName = config.model;
   }
-  convertOCRInputToDocumentContentChunk(input) {
+  convertVisualDocumentToDocumentContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
       "base64:image": {
@@ -92,7 +106,7 @@ var MistralOCR = class {
     try {
       const response = await this.client.ocr.process({
         model: this.modelName,
-        document: this.convertOCRInputToDocumentContentChunk(input),
+        document: this.convertVisualDocumentToDocumentContentChunk(input),
         includeImageBase64: false,
         imageLimit: null,
         imageMinSize: null
@@ -101,7 +115,6 @@ var MistralOCR = class {
       if (!resultMarkdown) {
         throw new OCRProcessingError("No markdown content found in the Mistral OCR response", response);
       }
-      console.log({ resultMarkdown });
       return resultMarkdown;
     } catch (error) {
       if (error instanceof OCRProcessingError) {
@@ -136,10 +149,9 @@ var MistralTextStructuring = class {
     this.client = client;
     this.modelName = config.model;
   }
-  async parse({
-    text,
+  async parse(text, {
     prompt,
-    outputSchema = null
+    outputSchema
   }) {
     const messageContent = [
       { type: "text", text: prompt },
@@ -197,31 +209,126 @@ var TextStructuringProvidersRegistry = {
   [Providers.Mistral]: MistralTextStructuringFactory
 };
 
-// src/engine/document-understanding.ts
-var DocumentUnderstandingService = class {
-  constructor(ocr, textStructuring) {
-    this.ocr = ocr;
-    this.textStructuring = textStructuring;
-  }
-  async understand(input, options) {
-    const text = await this.ocr.recognizeText(input);
-    if (!text) throw new Error("OCR returned no text");
-    return this.textStructuring.parse({
-      text,
-      prompt: options.prompt,
-      outputSchema: options.outputSchema
-    });
+// src/errors/visual-structuring.ts
+var VisualStructuringError = class extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.cause = cause;
+    this.name = "VisualStructuringError";
   }
 };
 
-// src/engine/document-understanding-factory.ts
-function DocumentUnderstandingServiceFactory(config) {
-  const ocrAdapter = OCRProvidersRegistry[config.ocr.provider](config.ocr.config);
-  const textStructuringAdapter = TextStructuringProvidersRegistry[config.textStructuring.provider](
-    config.textStructuring.config
-  );
-  return new DocumentUnderstandingService(ocrAdapter, textStructuringAdapter);
+// src/infrastructure/adapters/visual-structuring/mistral.ts
+var MistralVisualStructuring = class {
+  constructor(client, config) {
+    this.client = client;
+    this.modelName = config.model;
+  }
+  getBase64MimeAndExtension(base64) {
+    const match = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+    if (match) {
+      const mime = match[1];
+      const ext = mime.split("/")[1];
+      const content = match[2];
+      return { mime, ext, content };
+    }
+    return { mime: "image/jpeg", ext: "jpg", content: base64 };
+  }
+  convertVisualDocumentToContentChunk(input) {
+    const { source, file, documentType } = input;
+    const strategies = {
+      "base64:pdf": () => ({
+        type: "document_url",
+        documentUrl: `data:application/pdf;base64,${file}`
+      }),
+      "base64:image": () => {
+        const { mime, content } = this.getBase64MimeAndExtension(file);
+        return {
+          type: "image_url",
+          imageUrl: `data:${mime};base64,${content}`
+        };
+      },
+      "url:pdf": () => ({
+        type: "document_url",
+        documentUrl: file
+      }),
+      "url:image": () => ({
+        type: "image_url",
+        imageUrl: file
+      })
+    };
+    const currentStrategy = `${source}:${documentType}`;
+    const resolve = strategies[currentStrategy];
+    if (!resolve) {
+      throw new Error(`Unsupported OCR input source: ${source}, type: ${documentType}`);
+    }
+    return resolve();
+  }
+  async parse(input, {
+    prompt,
+    outputSchema
+  }) {
+    const contentChunk = this.convertVisualDocumentToContentChunk(input);
+    const messageContent = [
+      { type: "text", text: prompt },
+      contentChunk
+    ];
+    try {
+      const response = await this.client.chat.complete({
+        model: this.modelName,
+        messages: [
+          {
+            role: "user",
+            content: messageContent
+          }
+        ],
+        responseFormat: outputSchema ? {
+          type: "json_schema",
+          jsonSchema: {
+            strict: true,
+            schemaDefinition: outputSchema,
+            name: outputSchema.title,
+            description: outputSchema.description
+          }
+        } : {
+          type: "json_object"
+        }
+      });
+      const raw = response?.choices?.[0]?.message?.content;
+      if (typeof raw !== "string") {
+        throw new VisualStructuringError("Expected response to be a string.");
+      }
+      return JSON.parse(raw);
+    } catch (error) {
+      if (error instanceof VisualStructuringError) {
+        throw error;
+      }
+      const message = error instanceof SyntaxError ? "Failed to parse response as JSON" : error.message;
+      throw new VisualStructuringError(message, error);
+    }
+  }
+};
+function MistralVisualStructuringFactory(config) {
+  const client = getMistralSingletonClient({ apiKey: config.apiKey });
+  return new MistralVisualStructuring(client, {
+    model: config.model ?? "mistral-medium-latest"
+  });
 }
+
+// src/infrastructure/providers/visual-structuring.ts
+var VisualStructuringProvidersRegistry = {
+  [Providers.Mistral]: MistralVisualStructuringFactory
+};
+
+// src/engine/visual-understanding.ts
+var VisualUnderstanding = class {
+  constructor(adapter) {
+    this.adapter = adapter;
+  }
+  understand(document, factors) {
+    return this.adapter.parse(document, factors);
+  }
+};
 
 // src/domains/prescription/prompt.ts
 var prompt_default = `# Role
@@ -230,7 +337,7 @@ You are an experienced optometrist responsible for transcribing glasses prescrip
 
 # Objective
 
-Analyze the content of a scanned or handwritten prescription and extract all relevant information into a **JSON array** of prescription objects. The format must match the JSON Schema provided to the system.
+Analyze the content of a scanned or handwritten prescription and extract all relevant information into a JSON array of prescription objects.
 
 # Language Priority
 
@@ -242,96 +349,108 @@ Prescriptions may appear in multiple languages. Use the following priority to in
 
 # Output Rules
 
-- Only output a valid **JSON array** of prescription objects.
-- Each object must strictly follow the schema.
-- Do **not** output any text, markdown, explanations, or formatting around the JSON.
+- Only output a valid JSON array of prescription objects according to the JSON Schema.
 - Leave missing or unknown fields as empty strings "".
 
 # Extraction Instructions
 
-## Eye Identification
+# Patient Data
 
-Identify which side of the prescription the values belong to by looking for labels. Do **not** guess or infer the eye \u2014 only assign values when one of these labels is **explicitly found near the data**.
+- patient.title:
+  - Optional
+  - Extract from salutations like Madame, Monsieur, M., Mme
+  - Map to values like "Mr", "Mrs", "Ms"
+  - Leave as "" if not found
+- patient.firstName:
+  - Extract from salutations like Madame, Monsieur
+  - May contain multiple parts (e.g., "Erich Maria")
+  - If one word is in uppercase (e.g., "DUPONT"), assume the remaining words form the first name
+  - Example: "Madame Jeanne Dupont" \u2192 firstName: "Jeanne"
+  - Example complex: "Monsieur Erich Maria REMARQUE" \u2192 firstName: "Erich Maria"
+  - Example reversed: "Madame DUPONT Jeanne" \u2192 firstName: "Jeanne"
+- patient.lastName:
+  - If one name is in full uppercase, treat it as the last name
+  - Otherwise, use the last word as fallback if casing doesn't help
+  - Example: "Madame Jeanne Dupont" \u2192 lastName: "Dupont"
+  - Example complex: "Monsieur Erich Maria REMARQUE" \u2192 lastName: "REMARQUE"
+  - Example reversed: "Madame DUPONT Jeanne" \u2192 lastName: "DUPONT"
+- patient.birthdate:
+  - Optional
+  - Format: YYYY-MM-DD
+  - Often near the name
 
-- **Right eye ('prescription.right')**
-  - Common labels: OD, \u0152il droit, (E)il droit, oculus dexter
-- **Left eye ('prescription.left')**
-  - Common labels: OG, \u0152il gauche, (E)il gauche, oculus sinister
-- **Both eyes ('OU')**
-  - Common labels: OU, \u0152il Utile, (E)il Utile, oculus uterque
-  - If found, copy the same values into both 'left' and 'right'
+# Prescriber Data
+
+- prescriber: Extract doctor's name if available. May start with Dr, Docteur, etc.
+
+# Prescription Date
+
+- prescription.prescribedAt:
+  - Labels: Date de prescription, Date, valable
+  - Format: YYYY-MM-DD
+
+# Eye Identification
+
+Identify which side of the prescription the values belong to by looking for labels. Do not guess or infer the eye \u2014 only assign values when one of these labels is explicitly found near the data.
+
+- Right eye (prescription.right)
+  - Labels: OD, \u0152il droit, (E)il droit, oculus dexter
+- Left eye (prescription.left)
+  - Labels: OG, \u0152il gauche, (E)il gauche, oculus sinister
+- Both eyes (OU)
+  - Labels: OU, \u0152il Utile, (E)il Utile, oculus uterque
+  - If found, copy the same values into both left and right
 
 ## Data Field Mapping
 
-For each labeled eye section, look for and extract the following values:
+For each labeled eye section (prescription.right or prescription.left), look for and extract the following fields:
 
-- 'sphere':
-  - Labeled as SPH, S, Sph\xE8re
-  - Range: -20 to +20
-  - May be written as "plan" if 0
-- 'cylinder':
-  - Labeled as CYL, C, cylindre, cylinder
+- cylinder:
+  - Often written in parentheses, e.g. (-0.50)
+  - Labels: CYL, C, cylindre, cylinder (optional)
   - Range: -10 to 0
-  - Often in parentheses, e.g. '(-0.50)'
-- 'axis':
-  - Labeled as AXE, Ax, axis
+  - Always preserve the minus sign if present
+- axis:
+  - Labels: AXE, Ax, axis
   - Range: 0-180
-  - May include \xB0 or * after the number
-  - Usually only present when cylinder is present
-- 'visionType':
+  - Often includes \xB0 or * after the number
+  - Axis usually only appears when cylinder is present
+- sphere:
+  - Labels: SPH, S, Sph\xE8re (optional)
+  - Range: -20 to +20
+  - "plan" may be used for 0
+  - Always preserve the minus sign if present
+- visionType:
   - Inferred from context:
-    - "VL" = vision de loin, myopia, distance vision
-    - "VP" = vision de pr\xE8s, presbytie, near vision
-
-## Prescriber data
-
-- 'prescriber': Prescriber/Doctor name. Extract when available. May start with Dr, Docteur or other similar words. Most likely will be placed on the top of the page.
-
-## Patient Data
-
-- 'patient.firstName' and 'lastName': Extract when available. May start with Madame, Monsieur or other similar words. There may be birthdate near or around it.
-- 'patient.birthdate': Optional, format 'YYYY-MM-DD'. Places near patient name.
-
-## Prescription Date
-
-- 'prescription.prescribedAt':
-  - Labeled as: Date de prescription, Date, valable
-  - Format: 'YYYY-MM-DD'
+    - VL: de loin, vision de loin, far vision, distance vision, myopia, astigmatisme, hyperm\xE9tropie
+    - VP: de pr\xE8s, vision de pr\xE8s, near vision, presbytie
 
 # Pattern Matching Examples
 
-You may encounter different ways of expressing the same values. Use these common patterns to guide extraction:
+You may encounter various layouts and notations for sphere/cylinder/axis.
 
-1. **OD +1.00 (-0.50) 180\xB0** \u2192 sphere = +1.00, cylinder = -0.50, axis = 180
-2. **OG +2.00 (-0.75 90\xB0) Add +2.50** \u2192 left eye with sphere, cylinder, axis
-3. **Left Eye +1.25 / -0.50 Ax 135** \u2192 use slashes and Ax to extract values
-4. **(90\xB0 -1.00) +1.50 Add +2.00** \u2192 parenthesis-first order may apply
+a. +1.00 (-0.50) 180\xB0 \u2192 sphere = +1.00, cylinder = -0.50, axis = 180  
+b. +2.00 (-0.75 90\xB0) Add +2.50 \u2192 sphere = +2.00, cylinder = -0.75, axis = 90  
+c. +1.25 / -0.50 Ax 135 \u2192 sphere = +1.25, cylinder = -0.50, axis = 135  
+d. (angle\xB0 cyl) sph \u2192 axis = angle, cylinder = cyl, sphere = sph  
+   - Example: (10\xB0 -1.00) -0.75 \u2192 axis = 10, cylinder = -1.00, sphere = -0.75  
+   - Always treat the parenthesized value as cylinder if it contains a degree (\xB0), and the value after as sphere  
+e. (165\xB0 -1.00) -3.00 \u2192 axis = 165, cylinder = -1.00, sphere = -3.00  
+f. (-1.50) 180\xB0 \u2192 cylinder = -1.50, sphere = 0, axis = 180  
+   - If a single value is in parentheses and followed by an axis, treat it as cylinder, and sphere is 0
 
-# Parsing Layout Variations
+
+# Layout Hints
 
 - Values may appear to the right, below, or above their corresponding labels.
-- Layouts may be:
-  - Inline: 'OD +2.00 (-1.00) 180\xB0'
-  - Columnar: labels on one line, values below
-  - Mixed: tables or stacked formats
-- Always associate values with the **nearest valid label**.
-- Avoid misattributing values from one eye to the other.
+- Can be inline (OD +2.00 (-1.00) 180\xB0), columnar, tabular, or stacked.
+- Always associate values with the nearest valid label.
+- Never assign values from one eye to another unless marked explicitly as OU.
 
 # Multiple Prescriptions
 
-If the image contains more than one prescription (e.g., multiple people or visits):
-- Return a **JSON array with multiple objects**
-- Each object must be complete and valid
-
-# Final Checklist Before Responding
-
-- Only respond with a valid JSON array
-- All extracted fields are placed under the correct eye
-- Each field respects value types and format
-- Missing values are empty strings
-- You did **not** copy values between eyes unless explicitly marked as OU
-- JSON follows the schema and contains no extra fields or formatting
-`;
+If the document contains multiple prescriptions, corrections blocks or visits:
+- Return a JSON array with multiple objects`;
 
 // src/domains/prescription/schema.json
 var schema_default = {
@@ -348,9 +467,13 @@ var schema_default = {
         type: "object",
         description: "Information about the patient.",
         properties: {
+          title: {
+            type: "string",
+            description: "Optional honorific such as 'Mr', 'Mrs', or 'Ms', extracted from salutations like 'Madame', 'Monsieur', 'M.', 'Mme'. Leave as empty string if not found."
+          },
           firstName: {
             type: "string",
-            description: "Patient's first name. May start with Madam, Monsieur or similar"
+            description: "Patient's first name. May be composed of multiple parts. Salutations like 'Madame', 'Monsieur' must be excluded."
           },
           lastName: {
             type: "string",
@@ -460,41 +583,17 @@ var schema_default = {
   }
 };
 
-// src/domains/prescription/understanding.ts
-var PrescriptionUnderstandingService = class {
-  constructor(config) {
-    this.understandingService = DocumentUnderstandingServiceFactory(config);
-  }
-  async understand(prescriptionOCRInput) {
-    return this.understandingService.understand(prescriptionOCRInput, {
-      prompt: prompt_default,
-      outputSchema: schema_default
-    });
-  }
-};
-
-// src/domains/prescription/mistral-understanding.ts
+// src/domains/prescription/mistral.ts
 function MistralPrescriptionUnderstanding(options) {
-  return new PrescriptionUnderstandingService({
-    ocr: {
-      provider: Providers.Mistral,
-      config: {
-        apiKey: options.apiKey,
-        model: options.OCRModel
-      }
-    },
-    textStructuring: {
-      provider: Providers.Mistral,
-      config: {
-        apiKey: options.apiKey,
-        model: options.textStructuringModel
-      }
-    }
+  const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]({
+    apiKey: options.apiKey,
+    model: options.model ?? "mistral-medium-latest"
   });
+  const engine = new VisualUnderstanding(mistralAdapter);
+  return new DocumentUnderstandingService(engine, prompt_default, schema_default);
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  MistralPrescriptionUnderstanding,
-  PrescriptionUnderstandingService
+  MistralPrescriptionUnderstanding
 });
 //# sourceMappingURL=index.cjs.map

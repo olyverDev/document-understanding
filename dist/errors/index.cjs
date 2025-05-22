@@ -21,7 +21,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var errors_exports = {};
 __export(errors_exports, {
   OCRProcessingError: () => OCRProcessingError,
-  TextStructuringError: () => TextStructuringError
+  TextStructuringError: () => TextStructuringError,
+  VisualStructuringError: () => VisualStructuringError
 });
 module.exports = __toCommonJS(errors_exports);
 
@@ -42,9 +43,19 @@ var TextStructuringError = class extends Error {
     this.name = "TextStructuringError";
   }
 };
+
+// src/errors/visual-structuring.ts
+var VisualStructuringError = class extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.cause = cause;
+    this.name = "VisualStructuringError";
+  }
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   OCRProcessingError,
-  TextStructuringError
+  TextStructuringError,
+  VisualStructuringError
 });
 //# sourceMappingURL=index.cjs.map

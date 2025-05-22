@@ -1,4 +1,5 @@
-import { b as OCRProvidersConfigs, g as TextStructuringProvidersConfigs, a as OCRInput } from '../../text-structuring-BvvHEyDO.js';
+import { D as DocumentUnderstandingService } from '../../service-wDlDx4Rs.js';
+export { V as ProcessPrescriptionInput } from '../../service-wDlDx4Rs.js';
 
 interface EyePrescription {
     visionType: "VL" | "VP";
@@ -8,11 +9,12 @@ interface EyePrescription {
 }
 interface PrescriptionDocument {
     patient: {
+        title?: string;
         firstName: string;
         lastName: string;
         birthdate?: string;
     };
-    prescriber: string;
+    prescriber?: string;
     prescription: {
         prescribedAt: string;
         right: EyePrescription;
@@ -21,27 +23,28 @@ interface PrescriptionDocument {
 }
 type PrescriptionDocuments = PrescriptionDocument[];
 
-type PrescriptionUnderstandingConfig<OCR extends keyof OCRProvidersConfigs = 'mistral', TextStructuring extends keyof TextStructuringProvidersConfigs = 'mistral'> = {
-    ocr: {
-        provider: OCR;
-        config: OCRProvidersConfigs[OCR];
-    };
-    textStructuring: {
-        provider: TextStructuring;
-        config: TextStructuringProvidersConfigs[TextStructuring];
-    };
-};
-declare class PrescriptionUnderstandingService {
-    private readonly understandingService;
-    constructor(config: PrescriptionUnderstandingConfig);
-    understand(prescriptionOCRInput: OCRInput): Promise<PrescriptionDocuments>;
-}
-
 interface MistralOptions {
     apiKey: string;
-    OCRModel?: string;
-    textStructuringModel?: string;
+    model?: string;
 }
-declare function MistralPrescriptionUnderstanding(options: MistralOptions): PrescriptionUnderstandingService;
+/**
+ * @docs Prescription Understanding – Mistral Visual Strategy
+ *
+ * For the Prescription domain, the most effective understanding strategy
+ * has proven to be **visual understanding** using Mistral AI.
+ *
+ * This implementation leverages the Mistral Completion API to perform
+ * direct **Image-To-Json** structuring by providing:
+ * - A static prescription-specific `prompt`
+ * - A corresponding JSON `schema`
+ *
+ * The strategy is injected into a reusable `DocumentUnderstandingService`,
+ * allowing downstream consumers to extract structured data from
+ * images or PDFs of optical prescriptions.
+ *
+ * Internally, this uses the Mistral provider registered in the
+ * `VisualStructuringProvidersRegistry`.
+ */
+declare function MistralPrescriptionUnderstanding(options: MistralOptions): DocumentUnderstandingService<PrescriptionDocuments>;
 
-export { type MistralOptions, MistralPrescriptionUnderstanding, type PrescriptionDocument, type PrescriptionDocuments, type PrescriptionUnderstandingConfig, PrescriptionUnderstandingService, OCRInput as ProcessPrescriptionInput };
+export { type MistralOptions, MistralPrescriptionUnderstanding, type PrescriptionDocument, type PrescriptionDocuments };
