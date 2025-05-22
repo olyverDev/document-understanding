@@ -1,6 +1,4 @@
-export { MistralPrescriptionUnderstanding } from './mistral-understanding';
-export type { MistralOptions } from './mistral-understanding';
-export { PrescriptionUnderstandingService } from './understanding';
-export type { PrescriptionUnderstandingConfig } from './understanding';
-export type { OCRInput as ProcessPrescriptionInput } from '../../ports/ocr';
-export type { PrescriptionDocument, PrescriptionDocuments } from './types';
+export { MistralPrescriptionUnderstanding } from './mistral';
+export type { MistralOptions } from './mistral';
+export type { VisualDocument as ProcessPrescriptionInput } from '../../typings/visual-document';
+export type { PrescriptionDocument, PrescriptionDocuments } from './models';

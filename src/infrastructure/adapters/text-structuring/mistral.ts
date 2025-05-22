@@ -3,6 +3,7 @@ import type { ContentChunk, JsonSchema } from "@mistralai/mistralai/models/compo
 
 import { TextStructuringError } from "../../../errors/text-structuring";
 import type { TextStructuring } from "../../../ports/text-structuring";
+import { StructuringFactors } from "../../../typings/structuring-factors";
 import { getMistralSingletonClient } from "../../api/mistral-client";
 
 interface MistralTextStructuringConfig {
@@ -19,15 +20,10 @@ export class MistralTextStructuring<T> implements TextStructuring<T> {
     this.modelName = config.model;
   }
 
-  async parse({
-    text,
+  async parse(text: string, {
     prompt,
-    outputSchema = null,
-  }: {
-    prompt: string;
-    text: string | null;
-    outputSchema?: JsonSchema['schemaDefinition'] | null;
-  }): Promise<T> {
+    outputSchema,
+  }: StructuringFactors): Promise<T> {
     const messageContent: ContentChunk[] = [
       { type: "text", text: prompt },
       {
@@ -49,9 +45,9 @@ export class MistralTextStructuring<T> implements TextStructuring<T> {
           type: 'json_schema',
           jsonSchema: {
             strict: true,
-            schemaDefinition: outputSchema,
-            name: outputSchema.title,
-            description: outputSchema.description,
+            schemaDefinition: outputSchema as JsonSchema['schemaDefinition'],
+            name: outputSchema.title as string,
+            description: outputSchema.description as string,
           },
         } : {
           type: 'json_object'
