@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
-export default await tseslint.config({
+const tsConfig = await tseslint.config({
   files: ['**/*.ts'],
   languageOptions: {
     ecmaVersion: 'latest',
@@ -11,7 +11,6 @@ export default await tseslint.config({
   linterOptions: {
     reportUnusedDisableDirectives: true,
   },
-  ignores: ['dist', 'coverage', 'node_modules'],
   rules: {
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'no-empty': ['error', { allowEmptyCatch: true }],
@@ -39,3 +38,16 @@ export default await tseslint.config({
     },
   ],
 });
+
+export default [
+  {
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+  },
+  ...tsConfig,
+  {
+    files: ['*.d.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+];
