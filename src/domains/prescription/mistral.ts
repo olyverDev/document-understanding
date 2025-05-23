@@ -11,6 +11,14 @@ export interface MistralOptions {
   model?: string;
 }
 
+export type MistralResult = {
+  isInitialized: true;
+  service: DocumentUnderstandingService<PrescriptionDocuments>;
+} | {
+  isInitialized: false;
+  error?: Error;
+};
+
 /**
  * @docs Prescription Understanding – Mistral Visual Strategy
  *
@@ -31,13 +39,18 @@ export interface MistralOptions {
  */
 export function MistralPrescriptionUnderstanding(
   options: MistralOptions,
-): DocumentUnderstandingService<PrescriptionDocuments> {
-  const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({
-    apiKey: options.apiKey,
-    model: options.model ?? 'mistral-medium-latest',
-  });
+): MistralResult {
+  try {
+    const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({
+      apiKey: options.apiKey,
+      model: options.model ?? 'mistral-medium-latest',
+    });
 
-  const engine = new VisualUnderstanding(mistralAdapter);
+    const engine = new VisualUnderstanding(mistralAdapter);
+    const service = new DocumentUnderstandingService(engine, prompt, schema);
 
-  return new DocumentUnderstandingService(engine, prompt, schema);
-}
+    return { service, isInitialized: true };
+  } catch (error) {
+    return { error, isInitialized: false } as MistralResult;
+  }
+};

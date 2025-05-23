@@ -20,14 +20,18 @@ describe('Library real-world integration', () => {
         throw new Error('MISTRAL_API_KEY is required for integration tests');
       }
 
-      const service = MistralPrescriptionUnderstanding({
+      const mistral = MistralPrescriptionUnderstanding({
         apiKey: process.env.MISTRAL_API_KEY,
       });
+
+      if (!mistral.isInitialized) {
+        throw new Error('Mistral service is not initialized');
+      }
 
       const start = Date.now();
 
       try {
-        const result = await service.understand(input);
+        const result = await mistral.service.understand(input);
 
         const elapsed = Date.now() - start;
         console.log(`OCR + structuring completed in ${elapsed}ms`);

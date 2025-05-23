@@ -52,9 +52,13 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
     throw new Error('MISTRAL_API_KEY is required for integration tests');
   }
 
-  const service = MistralPrescriptionUnderstanding({
+  const mistral = MistralPrescriptionUnderstanding({
     apiKey: MISTRAL_API_KEY,
   });
+
+  if (!mistral.isInitialized) {
+    throw new Error('Mistral service is not initialized');
+  }
 
   testCases.forEach(({ name, base64, expected }) => {
     it(
@@ -65,7 +69,7 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
           file: base64,
           documentType: 'image',
         };
-        const result = await service.understand(input);
+        const result = await mistral.service.understand(input);
 
         switch (prescriptionVerificationMode) {
           case 'strict': {
@@ -73,9 +77,9 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
             break;
           }
           default: {
-            expect(result.length).toBe(expected.length);
+            expect(result?.length).toBe(expected.length);
 
-            result.forEach((actual, index) => {
+            result?.forEach((actual, index) => {
               expect(
                 pickPrescriptionCriticalFields(actual)
               ).toEqual(
