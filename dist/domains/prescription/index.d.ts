@@ -27,6 +27,13 @@ interface MistralOptions {
     apiKey: string;
     model?: string;
 }
+type MistralResult = {
+    isInitialized: true;
+    service: DocumentUnderstandingService<PrescriptionDocuments>;
+} | {
+    isInitialized: false;
+    error?: Error;
+};
 /**
  * @docs Prescription Understanding – Mistral Visual Strategy
  *
@@ -45,6 +52,6 @@ interface MistralOptions {
  * Internally, this uses the Mistral provider registered in the
  * `VisualStructuringProvidersRegistry`.
  */
-declare function MistralPrescriptionUnderstanding(options: MistralOptions): DocumentUnderstandingService<PrescriptionDocuments>;
+declare function MistralPrescriptionUnderstanding(options: MistralOptions): MistralResult;
 
 export { type MistralOptions, MistralPrescriptionUnderstanding, type PrescriptionDocument, type PrescriptionDocuments };

@@ -559,12 +559,17 @@ var schema_default = {
 
 // src/domains/prescription/mistral.ts
 function MistralPrescriptionUnderstanding(options) {
-  const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]({
-    apiKey: options.apiKey,
-    model: options.model ?? "mistral-medium-latest"
-  });
-  const engine = new VisualUnderstanding(mistralAdapter);
-  return new DocumentUnderstandingService(engine, prompt_default, schema_default);
+  try {
+    const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]({
+      apiKey: options.apiKey,
+      model: options.model ?? "mistral-medium-latest"
+    });
+    const engine = new VisualUnderstanding(mistralAdapter);
+    const service = new DocumentUnderstandingService(engine, prompt_default, schema_default);
+    return { service, isInitialized: true };
+  } catch (error) {
+    return { error, isInitialized: false };
+  }
 }
 export {
   MistralPrescriptionUnderstanding
