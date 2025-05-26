@@ -92,6 +92,21 @@ For each labeled eye section (prescription.right or prescription.left), look for
     - VL: de loin, vision de loin, far vision, distance vision, myopia, astigmatisme, hypermétropie
     - VP: de près, vision de près, near vision, presbytie
 
+# Parsing Sphere, Cylinder, Axis
+
+## Common Notation Patterns
+
+Below are standard formats used to express prescriptions. Focus on structure:
+
+- (axis° cylinder) sphere  
+- sphere (cylinder) axis  
+- sphere / cylinder Ax axis  
+- (cylinder) axis → sphere = 0  
+- sphere = "plan" → sphere = 0  
+- axis may be indicated as AXE, Ax, or followed by °
+
+These may be mixed with labels like OD/OG/OU, or appear inline, stacked, or in tables.
+
 # Pattern Matching Examples
 
 You may encounter various layouts and notations for sphere/cylinder/axis.
@@ -106,6 +121,58 @@ e. (165° -1.00) -3.00 → axis = 165, cylinder = -1.00, sphere = -3.00
 f. (-1.50) 180° → cylinder = -1.50, sphere = 0, axis = 180  
    - If a single value is in parentheses and followed by an axis, treat it as cylinder, and sphere is 0
 
+## Explained Parsing Rules (with more examples)
+
+- These values often appear together in patterns like:  
+  - +1.00 (-0.50) 180°
+  - +1.25 / -0.50 Ax 135
+  - (165° -1.00) -3.00
+- Parentheses typically indicate cylinder and axis, especially if they contain a degree.
+- Always preserve + or - signs. "plan" or "pl" means sphere = 0.
+
+## Inference Rules
+
+- If only one value is in parentheses, followed by a number with °:
+  - Treat parentheses as cylinder, number with ° as axis, and sphere = 0  
+  - Example: (-1.50) 180° → cylinder: -1.50, axis: 180, sphere: 0
+
+- If parentheses contain a degree and a signed number:
+  - The value with ° is the axis
+  - The other value inside parentheses is the cylinder
+  - The value after the parentheses is the sphere
+  - Example: (165° -1.00) -3.00 → axis: 165, cylinder: -1.00, sphere: -3.00
+  - Do NOT reverse cylinder and sphere, even if sphere is more negative
+
+- If 3 values appear, like +2.00 (-0.75 90°) or +1.25 / -0.50 Ax 135:
+  - sphere = first number, cylinder = second, axis = third
+  - Recognize "Ax" or "axis" as axis label
+
+## Special Pattern: (angle° cylinder) sphere
+
+If a value is written in the form (angle° cylinder) sphere:
+- Treat the degree value inside parentheses as axis
+- The number after the degree as cylinder
+- The value outside the parentheses as sphere
+
+Examples:
+- (160° -0.75) -0.5 → axis: 160, cylinder: -0.75, sphere: -0.5
+- (10° -1.00) -0.75 → axis: 10, cylinder: -1.00, sphere: -0.75
+
+Do NOT confuse cylinder and sphere, even if both are negative or look similar.
+- The second value is always the sphere.
+
+## Additional Inference Rule: (cylinder) à axis°
+
+If a single negative number is enclosed in parentheses, and followed by à or @ + degree (e.g. à 180°):
+- Treat the value inside parentheses as cylinder
+- The number after à as axis
+- Set sphere = 0
+Example:
+- (-1.50) à 180° → cylinder: -1.50, axis: 180, sphere: 0
+
+If a value appears before the parentheses, treat that as sphere
+Example:
+- -0.75 (-1.25) à 180° → sphere: -0.75, cylinder: -1.25, axis: 180
 
 # Layout Hints
 
