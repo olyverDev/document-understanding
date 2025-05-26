@@ -49,20 +49,20 @@ var MistralOCR = class {
     this.client = client;
     this.modelName = config.model;
   }
-  convertVisualDocumentToDocumentContentChunk(input) {
+  convertDocumentToContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
       "base64:image": {
         type: "image_url",
-        imageUrl: `data:image/jpeg;base64,${file}`
-      },
-      "base64:pdf": {
-        type: "document_url",
-        documentUrl: `data:application/pdf;base64,${file}`
+        imageUrl: file
       },
       "url:image": {
         type: "image_url",
         imageUrl: file
+      },
+      "base64:pdf": {
+        type: "document_url",
+        documentUrl: file
       },
       "url:pdf": {
         type: "document_url",
@@ -80,7 +80,7 @@ var MistralOCR = class {
     try {
       const response = await this.client.ocr.process({
         model: this.modelName,
-        document: this.convertVisualDocumentToDocumentContentChunk(input),
+        document: this.convertDocumentToContentChunk(input),
         includeImageBase64: false,
         imageLimit: null,
         imageMinSize: null
@@ -198,51 +198,34 @@ var MistralVisualStructuring = class {
     this.client = client;
     this.modelName = config.model;
   }
-  getBase64MimeAndExtension(base64) {
-    const match = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-    if (match) {
-      const mime = match[1];
-      const ext = mime.split("/")[1];
-      const content = match[2];
-      return { mime, ext, content };
-    }
-    return { mime: "image/jpeg", ext: "jpg", content: base64 };
-  }
-  convertVisualDocumentToContentChunk(input) {
+  convertDocumentToContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
-      "base64:pdf": () => ({
-        type: "document_url",
-        documentUrl: `data:application/pdf;base64,${file}`
-      }),
-      "base64:image": () => {
-        const { mime, content } = this.getBase64MimeAndExtension(file);
-        return {
-          type: "image_url",
-          imageUrl: `data:${mime};base64,${content}`
-        };
-      },
-      "url:pdf": () => ({
-        type: "document_url",
-        documentUrl: file
-      }),
-      "url:image": () => ({
+      "base64:image": {
         type: "image_url",
         imageUrl: file
-      })
+      },
+      "url:image": {
+        type: "image_url",
+        imageUrl: file
+      },
+      "url:pdf": {
+        type: "document_url",
+        documentUrl: file
+      }
     };
     const currentStrategy = `${source}:${documentType}`;
-    const resolve = strategies[currentStrategy];
-    if (!resolve) {
+    const documentContentChunk = strategies[currentStrategy];
+    if (!documentContentChunk) {
       throw new Error(`Unsupported OCR input source: ${source}, type: ${documentType}`);
     }
-    return resolve();
+    return documentContentChunk;
   }
   async parse(input, {
     prompt,
     outputSchema
   }) {
-    const contentChunk = this.convertVisualDocumentToContentChunk(input);
+    const contentChunk = this.convertDocumentToContentChunk(input);
     const messageContent = [
       { type: "text", text: prompt },
       contentChunk
@@ -399,6 +382,21 @@ For each labeled eye section (prescription.right or prescription.left), look for
     - VL: de loin, vision de loin, far vision, distance vision, myopia, astigmatisme, hyperm\xE9tropie
     - VP: de pr\xE8s, vision de pr\xE8s, near vision, presbytie
 
+# Parsing Sphere, Cylinder, Axis
+
+## Common Notation Patterns
+
+Below are standard formats used to express prescriptions. Focus on structure:
+
+- (axis\xB0 cylinder) sphere  
+- sphere (cylinder) axis  
+- sphere / cylinder Ax axis  
+- (cylinder) axis \u2192 sphere = 0  
+- sphere = "plan" \u2192 sphere = 0  
+- axis may be indicated as AXE, Ax, or followed by \xB0
+
+These may be mixed with labels like OD/OG/OU, or appear inline, stacked, or in tables.
+
 # Pattern Matching Examples
 
 You may encounter various layouts and notations for sphere/cylinder/axis.
@@ -413,6 +411,58 @@ e. (165\xB0 -1.00) -3.00 \u2192 axis = 165, cylinder = -1.00, sphere = -3.00
 f. (-1.50) 180\xB0 \u2192 cylinder = -1.50, sphere = 0, axis = 180  
    - If a single value is in parentheses and followed by an axis, treat it as cylinder, and sphere is 0
 
+## Explained Parsing Rules (with more examples)
+
+- These values often appear together in patterns like:  
+  - +1.00 (-0.50) 180\xB0
+  - +1.25 / -0.50 Ax 135
+  - (165\xB0 -1.00) -3.00
+- Parentheses typically indicate cylinder and axis, especially if they contain a degree.
+- Always preserve + or - signs. "plan" or "pl" means sphere = 0.
+
+## Inference Rules
+
+- If only one value is in parentheses, followed by a number with \xB0:
+  - Treat parentheses as cylinder, number with \xB0 as axis, and sphere = 0  
+  - Example: (-1.50) 180\xB0 \u2192 cylinder: -1.50, axis: 180, sphere: 0
+
+- If parentheses contain a degree and a signed number:
+  - The value with \xB0 is the axis
+  - The other value inside parentheses is the cylinder
+  - The value after the parentheses is the sphere
+  - Example: (165\xB0 -1.00) -3.00 \u2192 axis: 165, cylinder: -1.00, sphere: -3.00
+  - Do NOT reverse cylinder and sphere, even if sphere is more negative
+
+- If 3 values appear, like +2.00 (-0.75 90\xB0) or +1.25 / -0.50 Ax 135:
+  - sphere = first number, cylinder = second, axis = third
+  - Recognize "Ax" or "axis" as axis label
+
+## Special Pattern: (angle\xB0 cylinder) sphere
+
+If a value is written in the form (angle\xB0 cylinder) sphere:
+- Treat the degree value inside parentheses as axis
+- The number after the degree as cylinder
+- The value outside the parentheses as sphere
+
+Examples:
+- (160\xB0 -0.75) -0.5 \u2192 axis: 160, cylinder: -0.75, sphere: -0.5
+- (10\xB0 -1.00) -0.75 \u2192 axis: 10, cylinder: -1.00, sphere: -0.75
+
+Do NOT confuse cylinder and sphere, even if both are negative or look similar.
+- The second value is always the sphere.
+
+## Additional Inference Rule: (cylinder) \xE0 axis\xB0
+
+If a single negative number is enclosed in parentheses, and followed by \xE0 or @ + degree (e.g. \xE0 180\xB0):
+- Treat the value inside parentheses as cylinder
+- The number after \xE0 as axis
+- Set sphere = 0
+Example:
+- (-1.50) \xE0 180\xB0 \u2192 cylinder: -1.50, axis: 180, sphere: 0
+
+If a value appears before the parentheses, treat that as sphere
+Example:
+- -0.75 (-1.25) \xE0 180\xB0 \u2192 sphere: -0.75, cylinder: -1.25, axis: 180
 
 # Layout Hints
 

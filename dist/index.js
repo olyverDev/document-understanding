@@ -49,20 +49,20 @@ var MistralOCR = class {
     this.client = client;
     this.modelName = config.model;
   }
-  convertVisualDocumentToDocumentContentChunk(input) {
+  convertDocumentToContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
       "base64:image": {
         type: "image_url",
-        imageUrl: `data:image/jpeg;base64,${file}`
-      },
-      "base64:pdf": {
-        type: "document_url",
-        documentUrl: `data:application/pdf;base64,${file}`
+        imageUrl: file
       },
       "url:image": {
         type: "image_url",
         imageUrl: file
+      },
+      "base64:pdf": {
+        type: "document_url",
+        documentUrl: file
       },
       "url:pdf": {
         type: "document_url",
@@ -80,7 +80,7 @@ var MistralOCR = class {
     try {
       const response = await this.client.ocr.process({
         model: this.modelName,
-        document: this.convertVisualDocumentToDocumentContentChunk(input),
+        document: this.convertDocumentToContentChunk(input),
         includeImageBase64: false,
         imageLimit: null,
         imageMinSize: null
@@ -198,51 +198,34 @@ var MistralVisualStructuring = class {
     this.client = client;
     this.modelName = config.model;
   }
-  getBase64MimeAndExtension(base64) {
-    const match = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-    if (match) {
-      const mime = match[1];
-      const ext = mime.split("/")[1];
-      const content = match[2];
-      return { mime, ext, content };
-    }
-    return { mime: "image/jpeg", ext: "jpg", content: base64 };
-  }
-  convertVisualDocumentToContentChunk(input) {
+  convertDocumentToContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
-      "base64:pdf": () => ({
-        type: "document_url",
-        documentUrl: `data:application/pdf;base64,${file}`
-      }),
-      "base64:image": () => {
-        const { mime, content } = this.getBase64MimeAndExtension(file);
-        return {
-          type: "image_url",
-          imageUrl: `data:${mime};base64,${content}`
-        };
-      },
-      "url:pdf": () => ({
-        type: "document_url",
-        documentUrl: file
-      }),
-      "url:image": () => ({
+      "base64:image": {
         type: "image_url",
         imageUrl: file
-      })
+      },
+      "url:image": {
+        type: "image_url",
+        imageUrl: file
+      },
+      "url:pdf": {
+        type: "document_url",
+        documentUrl: file
+      }
     };
     const currentStrategy = `${source}:${documentType}`;
-    const resolve = strategies[currentStrategy];
-    if (!resolve) {
+    const documentContentChunk = strategies[currentStrategy];
+    if (!documentContentChunk) {
       throw new Error(`Unsupported OCR input source: ${source}, type: ${documentType}`);
     }
-    return resolve();
+    return documentContentChunk;
   }
   async parse(input, {
     prompt,
     outputSchema
   }) {
-    const contentChunk = this.convertVisualDocumentToContentChunk(input);
+    const contentChunk = this.convertDocumentToContentChunk(input);
     const messageContent = [
       { type: "text", text: prompt },
       contentChunk
