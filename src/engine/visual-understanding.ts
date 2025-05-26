@@ -1,4 +1,4 @@
-import type { VisualStructuring } from '../ports/visual-structuring';
+import type { VisualStructuring } from '../ports/visual-structuring.interface';
 import type { StructuringFactors } from '../typings/structuring-factors';
 import type { VisualDocument } from '../typings/visual-document';
 

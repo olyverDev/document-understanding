@@ -1,5 +1,5 @@
-import type { OCR } from '../ports/ocr';
-import type { TextStructuring } from '../ports/text-structuring';
+import type { OCR } from '../ports/ocr.interface';
+import type { TextStructuring } from '../ports/text-structuring.interface';
 import type { StructuringFactors } from '../typings/structuring-factors';
 import type { VisualDocument } from '../typings/visual-document';
 

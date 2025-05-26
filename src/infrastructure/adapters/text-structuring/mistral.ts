@@ -2,7 +2,7 @@ import { Mistral } from "@mistralai/mistralai";
 import type { ContentChunk, JsonSchema } from "@mistralai/mistralai/models/components";
 
 import { TextStructuringError } from "../../../errors/text-structuring";
-import type { TextStructuring } from "../../../ports/text-structuring";
+import type { TextStructuring } from "../../../ports/text-structuring.interface";
 import { StructuringFactors } from "../../../typings/structuring-factors";
 import { getMistralSingletonClient } from "../../api/mistral-client";
 

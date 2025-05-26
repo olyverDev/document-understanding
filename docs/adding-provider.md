@@ -30,7 +30,7 @@ src/infrastructure/adapters/text-structuring/openai.ts
 Implement the `TextStructuring<T>` interface:
 
 ```ts
-import type { TextStructuring } from '../../../ports/text-structuring';
+import type { TextStructuring } from '../../../ports/text-structuring.interface';
 
 export class OpenAITextStructuring<T> implements TextStructuring<T> {
   constructor(private readonly config: { token: string; model?: string }) {}
@@ -78,4 +78,4 @@ To add a provider:
 4. Done — the type system will infer config shape and usage
 
 ### Different Providers for OCR + TextUnderstanding
-You can add different providers for `OCR` and `TextStructuring` (e.g. Tesseract and OpenAI respectively). OCR + TextUnderstanding is a two-step pipeline and can involve multiple technologies.
+You can have different providers for `OCR` and `TextStructuring` within single document understanding pipeline (e.g. Tesseract and OpenAI respectively). OCR + TextUnderstanding is a two-step pipeline and can involve multiple technologies.
