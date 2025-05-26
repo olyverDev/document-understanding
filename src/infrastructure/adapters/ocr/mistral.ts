@@ -2,7 +2,7 @@ import { Mistral } from '@mistralai/mistralai';
 import type { ImageURLChunk, DocumentURLChunk } from '@mistralai/mistralai/models/components';
 
 import { OCRProcessingError } from '../../../errors/ocr';
-import type { OCR } from '../../../ports/ocr';
+import type { OCR } from '../../../ports/ocr.interface';
 import type { VisualDocument } from '../../../typings/visual-document';
 import { getMistralSingletonClient } from '../../api/mistral-client';
 
@@ -20,7 +20,7 @@ export class MistralOCR implements OCR {
     this.modelName = config.model;
   }
 
-  private convertVisualDocumentToDocumentContentChunk(input: VisualDocument): ImageURLChunk | DocumentURLChunk {
+  private convertDocumentToContentChunk(input: VisualDocument): ImageURLChunk | DocumentURLChunk {
     const { source, file, documentType } = input;
 
     type Key = `${typeof source}:${typeof documentType}`;
@@ -28,15 +28,15 @@ export class MistralOCR implements OCR {
     const strategies: Record<Key, ImageURLChunk | DocumentURLChunk> = {
       'base64:image': {
         type: 'image_url',
-        imageUrl: `data:image/jpeg;base64,${file}`,
-      },
-      'base64:pdf': {
-        type: 'document_url',
-        documentUrl: `data:application/pdf;base64,${file}`,
+        imageUrl: file,
       },
       'url:image': {
         type: 'image_url',
         imageUrl: file,
+      },
+      'base64:pdf': {
+        type: 'document_url',
+        documentUrl: file,
       },
       'url:pdf': {
         type: 'document_url',
@@ -58,10 +58,10 @@ export class MistralOCR implements OCR {
     try {
       const response = await this.client.ocr.process({
         model: this.modelName,
-        document: this.convertVisualDocumentToDocumentContentChunk(input),
+        document: this.convertDocumentToContentChunk(input),
         includeImageBase64: false,
         imageLimit: null,
-        imageMinSize: null, 
+        imageMinSize: null,
       });
 
       const resultMarkdown = response?.pages?.[0]?.markdown || null;
