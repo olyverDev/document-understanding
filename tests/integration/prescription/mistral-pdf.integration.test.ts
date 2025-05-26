@@ -17,14 +17,15 @@ const testCases = fs
     const name = dirent.name;
     const dir = path.join(FIXTURES_ROOT, name);
 
-    const imagePath = path.join(dir, 'input.jpg');
+    const pdfPath = path.join(dir, 'input.pdf');
     const expectedPath = path.join(dir, 'expected.json');
 
-    if (!fs.existsSync(imagePath)) throw new Error(`Missing input image in ${dir}`);
+    if (!fs.existsSync(pdfPath)) throw new Error(`Missing input PDF in ${dir}`);
     if (!fs.existsSync(expectedPath)) throw new Error(`Missing expected.json in ${dir}`);
 
-    const base64Raw = fs.readFileSync(imagePath, 'base64');
-    const base64 = `data:image/jpeg;base64,${base64Raw}`;
+    const base64Raw = fs.readFileSync(pdfPath, 'base64');
+    const base64 = `data:application/pdf;base64,${base64Raw}`;
+
 
     return {
       name,
@@ -57,14 +58,15 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
     throw new Error('Mistral service is not initialized');
   }
 
+
   testCases.forEach(({ name, base64, expected }) => {
     it(
       `${name}`,
       async () => {
         const input: VisualDocument = {
-          source: 'base64',
+          source: 'url',
           file: base64,
-          documentType: 'image',
+          documentType: 'pdf',
         };
         const result = await mistral.service.understand(input);
 
@@ -74,9 +76,9 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
             break;
           }
           default: {
-            expect(result?.length).toBe(expected.length);
+            expect(result.length).toBe(expected.length);
 
-            result?.forEach((actual, index) => {
+            result.forEach((actual, index) => {
               expect(
                 pickPrescriptionCriticalFields(actual)
               ).toEqual(

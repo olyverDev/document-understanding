@@ -94,7 +94,7 @@ describe('MistralVisualStructuringAdapter', () => {
     };
 
     expect(() =>
-      adapter['convertVisualDocumentToContentChunk'](invalid)
+      adapter['convertDocumentToContentChunk'](invalid)
     ).toThrowError(/Unsupported OCR input source/);
   });
 });

@@ -1,6 +1,6 @@
 import { OCRTextUnderstanding } from '../../../src/engine/ocr-text-understanding';
-import type { OCR } from '../../../src/ports/ocr';
-import type { TextStructuring } from '../../../src/ports/text-structuring';
+import type { OCR } from '../../../src/ports/ocr.interface';
+import type { TextStructuring } from '../../../src/ports/text-structuring.interface';
 import type { StructuringFactors } from '../../../src/typings/structuring-factors';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 

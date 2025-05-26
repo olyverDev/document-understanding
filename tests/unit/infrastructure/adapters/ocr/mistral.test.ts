@@ -55,7 +55,7 @@ describe('MistralOCRAdapter', () => {
       model: modelName,
       document: {
         type: 'image_url',
-        imageUrl: 'data:image/jpeg;base64,img==',
+        imageUrl: 'img==',
       },
       imageLimit: null,
       imageMinSize: null,
@@ -75,7 +75,7 @@ describe('MistralOCRAdapter', () => {
       model: modelName,
       document: {
         type: 'document_url',
-        documentUrl: 'data:application/pdf;base64,pdf==',
+        documentUrl: 'pdf==',
       },
       imageLimit: null,
       imageMinSize: null,
@@ -151,7 +151,7 @@ describe('MistralOCRAdapter', () => {
     };
 
     expect(() =>
-      adapter['convertVisualDocumentToDocumentContentChunk'](invalid)
+      adapter['convertDocumentToContentChunk'](invalid)
     ).toThrow();
   });
 });

@@ -1,5 +1,5 @@
 import { VisualUnderstanding } from '../../../src/engine/visual-understanding';
-import type { VisualStructuring } from '../../../src/ports/visual-structuring';
+import type { VisualStructuring } from '../../../src/ports/visual-structuring.interface';
 import type { StructuringFactors } from '../../../src/typings/structuring-factors';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
