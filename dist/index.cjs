@@ -30,16 +30,12 @@ module.exports = __toCommonJS(index_exports);
 
 // src/core/service.ts
 var DocumentUnderstandingService = class {
-  constructor(engine, prompt, outputSchema) {
+  constructor(engine, engineContext) {
     this.engine = engine;
-    this.prompt = prompt;
-    this.outputSchema = outputSchema;
+    this.engineContext = engineContext;
   }
   async understand(document) {
-    return this.engine.understand(document, {
-      prompt: this.prompt,
-      outputSchema: this.outputSchema
-    });
+    return this.engine.understand(document, this.engineContext);
   }
 };
 
@@ -67,7 +63,7 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
   return ({ apiKey }) => {
     if (!apiKey) throw new Error("Mistral requires an API key.");
     if (cache.has(apiKey)) return cache.get(apiKey);
-    const client = new import_mistralai.Mistral({ apiKey });
+    const client = new import_mistralai.Mistral({ apiKey, timeoutMs: 2e4 });
     cache.set(apiKey, client);
     return client;
   };
@@ -111,9 +107,7 @@ var MistralOCR = class {
       const response = await this.client.ocr.process({
         model: this.modelName,
         document: this.convertDocumentToContentChunk(input),
-        includeImageBase64: false,
-        imageLimit: null,
-        imageMinSize: null
+        includeImageBase64: false
       });
       const resultMarkdown = response?.pages?.[0]?.markdown || null;
       if (!resultMarkdown) {
@@ -157,39 +151,33 @@ var MistralTextStructuring = class {
     prompt,
     outputSchema
   }) {
-    const messageContent = [
-      { type: "text", text: prompt },
+    const messages = [
       {
-        type: "text",
-        text: `### File content in Markdown: ${text}`
+        role: "system",
+        content: [
+          { type: "text", text: prompt }
+        ]
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `### File content in Markdown: ${text}`
+          }
+        ]
       }
     ];
     try {
-      const chatResponse = await this.client.chat.complete({
+      const chatResponse = await this.client.chat.parse({
         model: this.modelName,
-        messages: [
-          {
-            role: "user",
-            content: messageContent
-          }
-        ],
-        responseFormat: outputSchema ? {
-          type: "json_schema",
-          jsonSchema: {
-            strict: true,
-            schemaDefinition: outputSchema,
-            name: outputSchema.title,
-            description: outputSchema.description
-          }
-        } : {
-          type: "json_object"
-        }
+        messages,
+        responseFormat: outputSchema
       });
-      const rawOutput = chatResponse?.choices?.[0].message?.content;
-      if (typeof rawOutput !== "string") {
-        throw new TextStructuringError("Expected Mistral LLM output to be string.");
+      const parsedOutput = chatResponse?.choices?.[0]?.message?.parsed;
+      if (!parsedOutput) {
+        throw new TextStructuringError("Expected Mistral LLM output to be fulfilled.");
       }
-      const parsedOutput = JSON.parse(rawOutput);
       return parsedOutput;
     } catch (error) {
       if (error instanceof TextStructuringError) {
@@ -256,19 +244,22 @@ var MistralVisualStructuring = class {
     outputSchema
   }) {
     const contentChunk = this.convertDocumentToContentChunk(input);
-    const messageContent = [
-      { type: "text", text: prompt },
-      contentChunk
+    const messages = [
+      {
+        role: "system",
+        content: [
+          { type: "text", text: prompt }
+        ]
+      },
+      {
+        role: "user",
+        content: [contentChunk]
+      }
     ];
     try {
       const response = await this.client.chat.complete({
         model: this.modelName,
-        messages: [
-          {
-            role: "user",
-            content: messageContent
-          }
-        ],
+        messages,
         responseFormat: outputSchema ? {
           type: "json_schema",
           jsonSchema: {

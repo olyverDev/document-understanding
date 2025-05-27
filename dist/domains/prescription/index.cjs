@@ -20,22 +20,33 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/domains/prescription/index.ts
 var prescription_exports = {};
 __export(prescription_exports, {
-  MistralPrescriptionUnderstanding: () => MistralPrescriptionUnderstanding
+  MistralPrescriptionUnderstandingFactory: () => MistralPrescriptionUnderstandingFactory
 });
 module.exports = __toCommonJS(prescription_exports);
 
 // src/core/service.ts
 var DocumentUnderstandingService = class {
-  constructor(engine, prompt, outputSchema) {
+  constructor(engine, engineContext) {
     this.engine = engine;
-    this.prompt = prompt;
-    this.outputSchema = outputSchema;
+    this.engineContext = engineContext;
   }
   async understand(document) {
-    return this.engine.understand(document, {
-      prompt: this.prompt,
-      outputSchema: this.outputSchema
-    });
+    return this.engine.understand(document, this.engineContext);
+  }
+};
+
+// src/engine/ocr-text-understanding.ts
+var OCRTextUnderstanding = class {
+  constructor(ocr, textStructuring) {
+    this.ocr = ocr;
+    this.textStructuring = textStructuring;
+  }
+  async understand(document, context) {
+    const text = await this.ocr.recognizeText(document);
+    if (!text) {
+      throw new Error("OCR returned no text");
+    }
+    return this.textStructuring.parse(text, context);
   }
 };
 
@@ -63,7 +74,7 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
   return ({ apiKey }) => {
     if (!apiKey) throw new Error("Mistral requires an API key.");
     if (cache.has(apiKey)) return cache.get(apiKey);
-    const client = new import_mistralai.Mistral({ apiKey });
+    const client = new import_mistralai.Mistral({ apiKey, timeoutMs: 2e4 });
     cache.set(apiKey, client);
     return client;
   };
@@ -107,9 +118,7 @@ var MistralOCR = class {
       const response = await this.client.ocr.process({
         model: this.modelName,
         document: this.convertDocumentToContentChunk(input),
-        includeImageBase64: false,
-        imageLimit: null,
-        imageMinSize: null
+        includeImageBase64: false
       });
       const resultMarkdown = response?.pages?.[0]?.markdown || null;
       if (!resultMarkdown) {
@@ -153,39 +162,33 @@ var MistralTextStructuring = class {
     prompt,
     outputSchema
   }) {
-    const messageContent = [
-      { type: "text", text: prompt },
+    const messages = [
       {
-        type: "text",
-        text: `### File content in Markdown: ${text}`
+        role: "system",
+        content: [
+          { type: "text", text: prompt }
+        ]
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `### File content in Markdown: ${text}`
+          }
+        ]
       }
     ];
     try {
-      const chatResponse = await this.client.chat.complete({
+      const chatResponse = await this.client.chat.parse({
         model: this.modelName,
-        messages: [
-          {
-            role: "user",
-            content: messageContent
-          }
-        ],
-        responseFormat: outputSchema ? {
-          type: "json_schema",
-          jsonSchema: {
-            strict: true,
-            schemaDefinition: outputSchema,
-            name: outputSchema.title,
-            description: outputSchema.description
-          }
-        } : {
-          type: "json_object"
-        }
+        messages,
+        responseFormat: outputSchema
       });
-      const rawOutput = chatResponse?.choices?.[0].message?.content;
-      if (typeof rawOutput !== "string") {
-        throw new TextStructuringError("Expected Mistral LLM output to be string.");
+      const parsedOutput = chatResponse?.choices?.[0]?.message?.parsed;
+      if (!parsedOutput) {
+        throw new TextStructuringError("Expected Mistral LLM output to be fulfilled.");
       }
-      const parsedOutput = JSON.parse(rawOutput);
       return parsedOutput;
     } catch (error) {
       if (error instanceof TextStructuringError) {
@@ -252,19 +255,22 @@ var MistralVisualStructuring = class {
     outputSchema
   }) {
     const contentChunk = this.convertDocumentToContentChunk(input);
-    const messageContent = [
-      { type: "text", text: prompt },
-      contentChunk
+    const messages = [
+      {
+        role: "system",
+        content: [
+          { type: "text", text: prompt }
+        ]
+      },
+      {
+        role: "user",
+        content: [contentChunk]
+      }
     ];
     try {
       const response = await this.client.chat.complete({
         model: this.modelName,
-        messages: [
-          {
-            role: "user",
-            content: messageContent
-          }
-        ],
+        messages,
         responseFormat: outputSchema ? {
           type: "json_schema",
           jsonSchema: {
@@ -301,16 +307,6 @@ function MistralVisualStructuringFactory(config) {
 // src/infrastructure/providers/visual-structuring.ts
 var VisualStructuringProvidersRegistry = {
   [Providers.Mistral]: MistralVisualStructuringFactory
-};
-
-// src/engine/visual-understanding.ts
-var VisualUnderstanding = class {
-  constructor(adapter) {
-    this.adapter = adapter;
-  }
-  understand(document, factors) {
-    return this.adapter.parse(document, factors);
-  }
 };
 
 // src/domains/prescription/prompt.ts
@@ -502,146 +498,70 @@ Example:
 If the document contains multiple prescriptions, corrections blocks or visits:
 - Return a JSON array with multiple objects`;
 
-// src/domains/prescription/schema.json
-var schema_default = {
-  $schema: "http://json-schema.org/draft-07/schema#",
-  title: "PrescriptionList",
-  description: "A list of glasses prescriptions.",
-  type: "array",
-  items: {
-    title: "Prescription",
-    description: "Schema for structuring glasses prescription information based on instructions.",
-    type: "object",
-    properties: {
-      patient: {
-        type: "object",
-        description: "Information about the patient.",
-        properties: {
-          title: {
-            type: "string",
-            description: "Optional honorific such as 'Mr', 'Mrs', or 'Ms', extracted from salutations like 'Madame', 'Monsieur', 'M.', 'Mme'. Leave as empty string if not found."
-          },
-          firstName: {
-            type: "string",
-            description: "Patient's first name. May be composed of multiple parts. Salutations like 'Madame', 'Monsieur' must be excluded."
-          },
-          lastName: {
-            type: "string",
-            description: "Patient's last name."
-          },
-          birthdate: {
-            type: "string",
-            description: "Patient's birth date in YYYY-MM-DD format."
-          }
-        },
-        required: [
-          "firstName",
-          "lastName"
-        ],
-        additionalProperties: false
-      },
-      prescriber: {
-        type: "string",
-        description: "Full name of the prescriber/doctor. May start with Dr, Docteur or similar."
-      },
-      prescription: {
-        type: "object",
-        description: "Details of the prescription.",
-        properties: {
-          prescribedAt: {
-            type: "string",
-            description: "Date when prescription was issued in YYYY-MM-DD format."
-          },
-          right: {
-            type: "object",
-            description: "Prescription for right eye (OD - \u0152il droit).",
-            properties: {
-              visionType: {
-                type: "string",
-                enum: [
-                  "VL",
-                  "VP"
-                ],
-                description: "Type of vision correction: VL (far vision), VP (near vision)."
-              },
-              sphere: {
-                type: "number",
-                description: "Spherical correction, range from -20 to 20."
-              },
-              cylinder: {
-                type: "number",
-                description: "Cylindrical correction, range from -10 to 0."
-              },
-              axis: {
-                type: "number",
-                description: "Axis value, range from 0 to 180."
-              }
-            },
-            required: [
-              "visionType",
-              "sphere",
-              "cylinder",
-              "axis"
-            ],
-            additionalProperties: false
-          },
-          left: {
-            type: "object",
-            description: "Prescription for left eye (OG - \u0152il gauche).",
-            properties: {
-              visionType: {
-                type: "string",
-                enum: [
-                  "VL",
-                  "VP"
-                ],
-                description: "Type of vision correction: VL (far vision), VP (near vision)."
-              },
-              sphere: {
-                type: "number",
-                description: "Spherical correction, range from -20 to +20."
-              },
-              cylinder: {
-                type: "number",
-                description: "Cylindrical correction, range from -10 to 0."
-              },
-              axis: {
-                type: "number",
-                description: "Axis value, range from 0 to 180."
-              }
-            },
-            required: [
-              "visionType",
-              "sphere",
-              "cylinder",
-              "axis"
-            ],
-            additionalProperties: false
-          }
-        },
-        required: [
-          "prescribedAt"
-        ],
-        additionalProperties: false
-      }
-    },
-    required: [
-      "patient",
-      "prescription"
-    ],
-    additionalProperties: false
-  }
-};
+// src/domains/prescription/zod-schema.ts
+var import_zod = require("zod");
+var EyePrescriptionSchema = () => import_zod.z.object({
+  visionType: import_zod.z.enum(["VL", "VP"]).describe(
+    "Type of vision correction: VL (vision de loin, myopia), VP (vision de pr\xE8s, presbytie)."
+  ),
+  sphere: import_zod.z.number().describe(
+    'Spherical correction, labeled as SPH, S, or Sph\xE8re. Value typically ranges from -20 to +20. "plan" means 0.'
+  ),
+  cylinder: import_zod.z.number().describe(
+    "Cylindrical correction, labeled as CYL, C, or cylindre. Value typically ranges from -10 to 0. May appear in parentheses."
+  ),
+  axis: import_zod.z.number().describe(
+    "Axis value, labeled as AXE, Ax, or axis. Value typically ranges from 0 to 180. Usually appears if cylinder is present."
+  )
+});
+var Patient = import_zod.z.object({
+  title: import_zod.z.enum(["Mr", "Mrs", "Ms", ""]).optional().default("").describe(
+    "Allowed values are 'Mr' (Monsieur, M.), 'Mrs' (Madame), or 'Ms' (Mme). Leave empty if not found."
+  ),
+  firstName: import_zod.z.string().describe(
+    "Patient\u2019s first name. May appear near honorifics like Madame, Monsieur."
+  ),
+  lastName: import_zod.z.string().describe(
+    "Patient\u2019s last name. Often appears after first name or in uppercase."
+  ),
+  birthdate: import_zod.z.string().optional().default("").describe(
+    "Optional. Patient\u2019s birthdate in 'YYYY-MM-DD' format."
+  )
+});
+var PrescriptionDocumentSchema = import_zod.z.object({
+  patient: Patient,
+  prescriber: import_zod.z.string().optional().default("").describe(
+    "Doctor\u2019s name. May start with 'Dr' or 'Docteur'. Usually at the top."
+  ),
+  prescription: import_zod.z.object({
+    prescribedAt: import_zod.z.string().optional().describe(
+      "Date when prescription was issued, labeled as 'Date', format 'YYYY-MM-DD'."
+    ),
+    right: EyePrescriptionSchema().describe("Prescription for right eye (OD, \u0152il droit)."),
+    left: EyePrescriptionSchema().describe("Prescription for left eye (OG, \u0152il gauche).")
+  }).describe("Prescription values split by eye. Use only explicitly labeled values.")
+});
+var PrescriptionDocumentListSchema = import_zod.z.array(PrescriptionDocumentSchema).describe(
+  "A list of structured prescription objects extracted from scanned or handwritten input."
+);
 
 // src/domains/prescription/mistral.ts
-function MistralPrescriptionUnderstanding(options) {
+function MistralPrescriptionUnderstandingFactory(options) {
   try {
-    const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]({
+    const mistralOCRAdapter = OCRProvidersRegistry[Providers.Mistral]({
+      apiKey: options.apiKey,
+      model: options.model
+    });
+    const mistralTextStructuringAdapter = TextStructuringProvidersRegistry[Providers.Mistral]({
       apiKey: options.apiKey,
       model: options.model ?? "mistral-medium-latest"
     });
-    const engine = new VisualUnderstanding(mistralAdapter);
-    const service = new DocumentUnderstandingService(engine, prompt_default, schema_default);
+    const engine = new OCRTextUnderstanding(mistralOCRAdapter, mistralTextStructuringAdapter);
+    const engineContext = {
+      prompt: prompt_default,
+      outputSchema: PrescriptionDocumentListSchema
+    };
+    const service = new DocumentUnderstandingService(engine, engineContext);
     return { service, isInitialized: true };
   } catch (error) {
     return { error, isInitialized: false };
@@ -649,6 +569,6 @@ function MistralPrescriptionUnderstanding(options) {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  MistralPrescriptionUnderstanding
+  MistralPrescriptionUnderstandingFactory
 });
 //# sourceMappingURL=index.cjs.map
