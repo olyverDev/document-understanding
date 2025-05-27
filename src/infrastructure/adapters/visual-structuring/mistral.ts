@@ -10,7 +10,7 @@ interface MistralVisualStructuringConfig {
   model: string;
 }
 
-interface MistralVisualStructuringContext {
+export interface MistralVisualStructuringContext {
   prompt: string;
   outputSchema?: JsonSchema['schemaDefinition'];
 }
