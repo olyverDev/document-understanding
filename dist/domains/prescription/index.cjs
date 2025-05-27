@@ -20,22 +20,33 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/domains/prescription/index.ts
 var prescription_exports = {};
 __export(prescription_exports, {
-  MistralPrescriptionUnderstanding: () => MistralPrescriptionUnderstanding
+  MistralPrescriptionUnderstandingFactory: () => MistralPrescriptionUnderstandingFactory
 });
 module.exports = __toCommonJS(prescription_exports);
 
 // src/core/service.ts
 var DocumentUnderstandingService = class {
-  constructor(engine, prompt, outputSchema) {
+  constructor(engine, engineContext) {
     this.engine = engine;
-    this.prompt = prompt;
-    this.outputSchema = outputSchema;
+    this.engineContext = engineContext;
   }
   async understand(document) {
-    return this.engine.understand(document, {
-      prompt: this.prompt,
-      outputSchema: this.outputSchema
-    });
+    return this.engine.understand(document, this.engineContext);
+  }
+};
+
+// src/engine/ocr-text-understanding.ts
+var OCRTextUnderstanding = class {
+  constructor(ocr, textStructuring) {
+    this.ocr = ocr;
+    this.textStructuring = textStructuring;
+  }
+  async understand(document, context) {
+    const text = await this.ocr.recognizeText(document);
+    if (!text) {
+      throw new Error("OCR returned no text");
+    }
+    return this.textStructuring.parse(text, context);
   }
 };
 
@@ -169,7 +180,7 @@ var MistralTextStructuring = class {
             content: messageContent
           }
         ],
-        responseFormat: outputSchema ? {
+        responseFormat: {
           type: "json_schema",
           jsonSchema: {
             strict: true,
@@ -177,8 +188,6 @@ var MistralTextStructuring = class {
             name: outputSchema.title,
             description: outputSchema.description
           }
-        } : {
-          type: "json_object"
         }
       });
       const rawOutput = chatResponse?.choices?.[0].message?.content;
@@ -301,16 +310,6 @@ function MistralVisualStructuringFactory(config) {
 // src/infrastructure/providers/visual-structuring.ts
 var VisualStructuringProvidersRegistry = {
   [Providers.Mistral]: MistralVisualStructuringFactory
-};
-
-// src/engine/visual-understanding.ts
-var VisualUnderstanding = class {
-  constructor(adapter) {
-    this.adapter = adapter;
-  }
-  understand(document, factors) {
-    return this.adapter.parse(document, factors);
-  }
 };
 
 // src/domains/prescription/prompt.ts
@@ -634,14 +633,22 @@ var schema_default = {
 };
 
 // src/domains/prescription/mistral.ts
-function MistralPrescriptionUnderstanding(options) {
+function MistralPrescriptionUnderstandingFactory(options) {
   try {
-    const mistralAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]({
+    const mistralOCRAdapter = OCRProvidersRegistry[Providers.Mistral]({
+      apiKey: options.apiKey,
+      model: options.model
+    });
+    const mistralTextStructuringAdapter = TextStructuringProvidersRegistry[Providers.Mistral]({
       apiKey: options.apiKey,
       model: options.model ?? "mistral-medium-latest"
     });
-    const engine = new VisualUnderstanding(mistralAdapter);
-    const service = new DocumentUnderstandingService(engine, prompt_default, schema_default);
+    const engine = new OCRTextUnderstanding(mistralOCRAdapter, mistralTextStructuringAdapter);
+    const engineContext = {
+      prompt: prompt_default,
+      outputSchema: schema_default
+    };
+    const service = new DocumentUnderstandingService(engine, engineContext);
     return { service, isInitialized: true };
   } catch (error) {
     return { error, isInitialized: false };
@@ -649,6 +656,6 @@ function MistralPrescriptionUnderstanding(options) {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  MistralPrescriptionUnderstanding
+  MistralPrescriptionUnderstandingFactory
 });
 //# sourceMappingURL=index.cjs.map
