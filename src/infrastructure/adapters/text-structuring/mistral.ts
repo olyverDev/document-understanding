@@ -10,7 +10,7 @@ interface MistralTextStructuringConfig {
   model: string;
 }
 
-interface MistralTextStructuringContext {
+export interface MistralTextStructuringContext {
   prompt: string;
   outputSchema: Zod.ZodTypeAny;
 }
