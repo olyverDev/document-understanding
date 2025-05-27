@@ -60,8 +60,6 @@ export class MistralOCR implements OCR {
         model: this.modelName,
         document: this.convertDocumentToContentChunk(input),
         includeImageBase64: false,
-        imageLimit: null,
-        imageMinSize: null,
       });
 
       const resultMarkdown = response?.pages?.[0]?.markdown || null;

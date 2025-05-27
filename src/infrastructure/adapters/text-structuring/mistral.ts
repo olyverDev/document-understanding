@@ -1,16 +1,21 @@
 import { Mistral } from "@mistralai/mistralai";
-import type { ContentChunk, JsonSchema } from "@mistralai/mistralai/models/components";
+import type { ChatCompletionStreamRequestMessages } from "@mistralai/mistralai/models/components";
+import { z as Zod } from "zod";
 
 import { TextStructuringError } from "../../../errors/text-structuring";
 import type { TextStructuring } from "../../../ports/text-structuring.interface";
-import { StructuringFactors } from "../../../typings/structuring-factors";
 import { getMistralSingletonClient } from "../../api/mistral-client";
 
 interface MistralTextStructuringConfig {
   model: string;
 }
 
-export class MistralTextStructuring<T> implements TextStructuring<T> {
+interface MistralTextStructuringContext {
+  prompt: string;
+  outputSchema: Zod.ZodTypeAny;
+}
+
+export class MistralTextStructuring<T> implements TextStructuring<T, MistralTextStructuringContext> {
   private readonly modelName: string;
 
   constructor(
@@ -23,44 +28,37 @@ export class MistralTextStructuring<T> implements TextStructuring<T> {
   async parse(text: string, {
     prompt,
     outputSchema,
-  }: StructuringFactors): Promise<T> {
-    const messageContent: ContentChunk[] = [
-      { type: "text", text: prompt },
+  }: MistralTextStructuringContext): Promise<T> {
+    const messages: ChatCompletionStreamRequestMessages[] = [
       {
-        type: "text",
-        text: `### File content in Markdown: ${text}`,
+        role: "system",
+        content: [
+          { type: "text", text: prompt },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `### File content in Markdown: ${text}`,
+          },
+        ],
       },
     ];
 
     try {
-      const chatResponse = await this.client.chat.complete({
+      const chatResponse = await this.client.chat.parse({
         model: this.modelName,
-        messages: [
-          {
-            role: "user",
-            content: messageContent,
-          },
-        ],
-        responseFormat: outputSchema ? {
-          type: 'json_schema',
-          jsonSchema: {
-            strict: true,
-            schemaDefinition: outputSchema as JsonSchema['schemaDefinition'],
-            name: outputSchema.title as string,
-            description: outputSchema.description as string,
-          },
-        } : {
-          type: 'json_object'
-        },
+        messages,
+        responseFormat: outputSchema,
       });
 
-      const rawOutput = chatResponse?.choices?.[0].message?.content;
+      const parsedOutput = chatResponse?.choices?.[0]?.message?.parsed;
 
-      if (typeof rawOutput !== 'string') {
-        throw new TextStructuringError('Expected Mistral LLM output to be string.');
+      if (!parsedOutput) {
+        throw new TextStructuringError('Expected Mistral LLM output to be fulfilled.');
       }
-
-      const parsedOutput = JSON.parse(rawOutput);
 
       return parsedOutput as T;
     } catch (error) {
@@ -85,7 +83,7 @@ export type MistralTextStructuringFactoryConfig = {
 
 export const MistralTextStructuringFactory = <T>(
   config: MistralTextStructuringFactoryConfig
-): TextStructuring<T> => {
+): TextStructuring<T, MistralTextStructuringContext> => {
   const client = getMistralSingletonClient({ apiKey: config.apiKey });
   return new MistralTextStructuring<T>(client, {
     model: config.model ?? 'mistral-medium-latest',

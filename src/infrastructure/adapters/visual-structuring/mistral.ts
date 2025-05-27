@@ -1,9 +1,8 @@
 import { Mistral } from '@mistralai/mistralai';
-import type { ContentChunk, JsonSchema } from '@mistralai/mistralai/models/components';
+import type { ChatCompletionStreamRequestMessages, ContentChunk, JsonSchema } from '@mistralai/mistralai/models/components';
 
 import { VisualStructuringError } from '../../../errors/visual-structuring';
 import type { VisualStructuring } from '../../../ports/visual-structuring.interface';
-import { StructuringFactors } from '../../../typings/structuring-factors';
 import type { VisualDocument } from '../../../typings/visual-document';
 import { getMistralSingletonClient } from '../../api/mistral-client';
 
@@ -11,7 +10,12 @@ interface MistralVisualStructuringConfig {
   model: string;
 }
 
-export class MistralVisualStructuring<T> implements VisualStructuring<T> {
+interface MistralVisualStructuringContext {
+  prompt: string;
+  outputSchema?: JsonSchema['schemaDefinition'];
+}
+
+export class MistralVisualStructuring<T> implements VisualStructuring<T, MistralVisualStructuringContext> {
   private readonly modelName: string;
 
   constructor(
@@ -64,31 +68,33 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T> {
   async parse(input: VisualDocument, {
     prompt,
     outputSchema,
-  }: StructuringFactors): Promise<T> {
+  }: MistralVisualStructuringContext): Promise<T> {
     const contentChunk = this.convertDocumentToContentChunk(input);
-
-    const messageContent: ContentChunk[] = [
-      { type: 'text', text: prompt },
-      contentChunk,
+    const messages: ChatCompletionStreamRequestMessages[] = [
+      {
+        role: "system",
+        content: [
+          { type: "text", text: prompt },
+        ],
+      },
+      {
+        role: "user",
+        content: [contentChunk],
+      },
     ];
 
     try {
       const response = await this.client.chat.complete({
         model: this.modelName,
-        messages: [
-          {
-            role: 'user',
-            content: messageContent,
-          },
-        ],
+        messages: messages,
         responseFormat: outputSchema
           ? {
               type: 'json_schema',
               jsonSchema: {
                 strict: true,
-                schemaDefinition: outputSchema as JsonSchema['schemaDefinition'],
-                name: outputSchema.title as string,
-                description: outputSchema.description as string,
+                schemaDefinition: outputSchema,
+                name: outputSchema.title,
+                description: outputSchema.description,
               },
             }
           : {
@@ -125,7 +131,7 @@ interface MistralVisualStructuringFactoryConfig {
 
 export function MistralVisualStructuringFactory<T>(
   config: MistralVisualStructuringFactoryConfig
-): VisualStructuring<T> {
+): VisualStructuring<T, MistralVisualStructuringContext> {
   const client = getMistralSingletonClient({ apiKey: config.apiKey });
 
   return new MistralVisualStructuring<T>(client, {

@@ -7,7 +7,7 @@ export const getMistralSingletonClient = (() => {
     if (!apiKey) throw new Error('Mistral requires an API key.');
     if (cache.has(apiKey)) return cache.get(apiKey)!;
 
-    const client = new Mistral({ apiKey });
+    const client = new Mistral({ apiKey, timeoutMs: 20000 });
     cache.set(apiKey, client);
     return client;
   };
