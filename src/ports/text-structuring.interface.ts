@@ -1,27 +1,23 @@
-import { StructuringFactors } from "../typings/structuring-factors";
-
 /**
- * Interface for adapters capable of transforming unstructured text
- * into structured data using prompts, schemas, or other logic.
+ * Interface for adapters capable of transforming raw text
+ * into structured data using prompts, schemas, or logic engines.
  *
- * This abstraction allows pluggable implementations such as:
- * - LLM-based structuring (e.g. Mistral, OpenAI)
- * - Heuristic-based or rule-based structuring
- * - Hybrid logic engines
+ * This abstraction supports various strategies such as:
+ * - LLM-based structuring (e.g., Mistral, OpenAI)
+ * - Heuristic or rule-based processing/parsing
+ * - Hybrid systems
  *
  * @template T - The expected structured output type.
  */
-export interface TextStructuring<T = unknown> {
+export interface TextStructuring<T, C = unknown> {
   /**
-   * Parses raw text content into structured output.
+   * Parses raw text into a structured format.
    *
-   * @param text - The raw text to be structured (e.g., from OCR or any source).
-   * @param options - StructuringFactors providing prompt and optional schema.
-   * @param options.prompt - Prompt to guide the structuring logic (especially for LLMs).
-   * @param options.outputSchema - Optional JSON Schema object to define the expected structure of the result.
+   * @param text - The input text to structure.
+   * @param options - optional context/configuration (e.g. rules for the Parser, prompt-schema pair for LLM)
    *
    * @returns A Promise resolving to structured output of type `T`.
-   * @throws May throw an error if parsing fails, input is invalid, or a provider is misconfigured.
+   * @throws If parsing fails or the input/provider is invalid.
    */
-  parse(text: string, options: StructuringFactors): Promise<T>;
+  parse(text: string, context?: C): Promise<T>;
 }

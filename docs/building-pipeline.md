@@ -51,5 +51,5 @@ const result: PrescriptionDocuments = await service.understand(input);
 
 #### Core service role
 
-The [`DocumentUnderstandingService<T>`](../src/core/service.ts) class unifies prompt and schema injection for any [`UnderstandingEngine<T>](../src/engine/understanding-engine.ts)
+The [`DocumentUnderstandingService<T>`](../src/core/service.ts) class unifies prompt and schema injection for any [`UnderstandingEngine<T>](../src/engine/understanding-engine.interface.ts)
 
