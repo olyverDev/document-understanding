@@ -1,6 +1,5 @@
 import { VisualUnderstanding } from '../../../src/engine/visual-understanding';
 import type { VisualStructuring } from '../../../src/ports/visual-structuring.interface';
-import type { StructuringFactors } from '../../../src/typings/structuring-factors';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
 describe('VisualUnderstanding', () => {
@@ -17,7 +16,7 @@ describe('VisualUnderstanding', () => {
     documentType: 'image',
   };
 
-  const factors: StructuringFactors = {
+  const context = {
     prompt: 'Extract value',
   };
 
@@ -29,9 +28,9 @@ describe('VisualUnderstanding', () => {
     const expected = { value: 'ok' };
     mockParse.mockResolvedValueOnce(expected);
 
-    const result = await service.understand(document, factors);
+    const result = await service.understand(document, context);
 
-    expect(mockParse).toHaveBeenCalledWith(document, factors);
+    expect(mockParse).toHaveBeenCalledWith(document, context);
     expect(result).toEqual(expected);
   });
 
@@ -39,6 +38,6 @@ describe('VisualUnderstanding', () => {
     const error = new Error('adapter failed');
     mockParse.mockRejectedValueOnce(error);
 
-    await expect(service.understand(document, factors)).rejects.toThrow(error);
+    await expect(service.understand(document, context)).rejects.toThrow(error);
   });
 });

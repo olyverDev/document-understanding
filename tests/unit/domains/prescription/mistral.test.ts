@@ -1,5 +1,5 @@
 import { DocumentUnderstandingService } from '../../../../src';
-import { MistralPrescriptionUnderstanding } from '../../../../src/domains/prescription/mistral';
+import { MistralPrescriptionUnderstandingFactory } from '../../../../src/domains/prescription/mistral';
 import prompt from '../../../../src/domains/prescription/prompt';
 import schema from '../../../../src/domains/prescription/schema.json';
 import { VisualUnderstanding } from '../../../../src/engine/visual-understanding';
@@ -21,7 +21,7 @@ jest.mock('../../../../src', () => {
   };
 });
 
-describe('MistralPrescriptionUnderstanding', () => {
+describe('MistralPrescriptionUnderstandingFactory', () => {
   const mockApiKey = 'sk-test';
   const mockAdapter = { parse: jest.fn() };
   const mockEngine = { understand: jest.fn() };
@@ -39,7 +39,7 @@ describe('MistralPrescriptionUnderstanding', () => {
   });
 
   it('returns initialized result with default model', () => {
-    const result = MistralPrescriptionUnderstanding({ apiKey: mockApiKey });
+    const result = MistralPrescriptionUnderstandingFactory({ apiKey: mockApiKey });
 
     expect(mockedRegistry).toHaveBeenCalledWith({
       apiKey: mockApiKey,
@@ -56,7 +56,7 @@ describe('MistralPrescriptionUnderstanding', () => {
   });
 
   it('uses custom model override', () => {
-    const result = MistralPrescriptionUnderstanding({
+    const result = MistralPrescriptionUnderstandingFactory({
       apiKey: mockApiKey,
       model: 'mistral-large-latest',
     });
@@ -77,7 +77,7 @@ describe('MistralPrescriptionUnderstanding', () => {
       throw new Error('Registry failure');
     });
 
-    const result = MistralPrescriptionUnderstanding({ apiKey: mockApiKey });
+    const result = MistralPrescriptionUnderstandingFactory({ apiKey: mockApiKey });
 
     expect(result.isInitialized).toBe(false);
     if (!result.isInitialized) {

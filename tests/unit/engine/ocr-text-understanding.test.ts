@@ -1,7 +1,6 @@
 import { OCRTextUnderstanding } from '../../../src/engine/ocr-text-understanding';
 import type { OCR } from '../../../src/ports/ocr.interface';
 import type { TextStructuring } from '../../../src/ports/text-structuring.interface';
-import type { StructuringFactors } from '../../../src/typings/structuring-factors';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
 describe('OCRTextUnderstanding', () => {
@@ -21,7 +20,7 @@ describe('OCRTextUnderstanding', () => {
     documentType: 'image',
   };
 
-  const factors: StructuringFactors = {
+  const context = {
     prompt: 'Extract value',
   };
 
@@ -33,24 +32,24 @@ describe('OCRTextUnderstanding', () => {
     (mockOCR.recognizeText as jest.Mock).mockResolvedValueOnce('markdown text');
     (mockTextStructuring.parse as jest.Mock).mockResolvedValueOnce({ value: 'done' });
 
-    const result = await adapter.understand(document, factors);
+    const result = await adapter.understand(document, context);
 
     expect(mockOCR.recognizeText).toHaveBeenCalledWith(document);
-    expect(mockTextStructuring.parse).toHaveBeenCalledWith('markdown text', factors);
+    expect(mockTextStructuring.parse).toHaveBeenCalledWith('markdown text', context);
     expect(result).toEqual({ value: 'done' });
   });
 
   it('throws if OCR returns empty text', async () => {
     (mockOCR.recognizeText as jest.Mock).mockResolvedValueOnce('');
 
-    await expect(adapter.understand(document, factors)).rejects.toThrow('OCR returned no text');
+    await expect(adapter.understand(document, context)).rejects.toThrow('OCR returned no text');
   });
 
   it('propagates OCR errors', async () => {
     const error = new Error('OCR failed');
     (mockOCR.recognizeText as jest.Mock).mockRejectedValueOnce(error);
 
-    await expect(adapter.understand(document, factors)).rejects.toThrow(error);
+    await expect(adapter.understand(document, context)).rejects.toThrow(error);
   });
 
   it('propagates parsing errors', async () => {
@@ -58,6 +57,6 @@ describe('OCRTextUnderstanding', () => {
     const error = new Error('Parse failed');
     (mockTextStructuring.parse as jest.Mock).mockRejectedValueOnce(error);
 
-    await expect(adapter.understand(document, factors)).rejects.toThrow(error);
+    await expect(adapter.understand(document, context)).rejects.toThrow(error);
   });
 });

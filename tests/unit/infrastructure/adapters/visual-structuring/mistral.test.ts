@@ -2,7 +2,6 @@ import type { Mistral } from '@mistralai/mistralai';
 
 import { VisualStructuringError } from '../../../../../src/errors/visual-structuring';
 import { MistralVisualStructuring } from '../../../../../src/infrastructure/adapters/visual-structuring/mistral';
-import type { StructuringFactors } from '../../../../../src/typings/structuring-factors';
 import type { VisualDocument } from '../../../../../src/typings/visual-document';
 
 describe('MistralVisualStructuringAdapter', () => {
@@ -23,7 +22,7 @@ describe('MistralVisualStructuringAdapter', () => {
   };
 
   const prompt = 'Extract data from image';
-  const schema: StructuringFactors['outputSchema'] = {
+  const schema = {
     title: 'TestSchema',
     description: 'Just a test',
     strict: true,

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { MistralPrescriptionUnderstanding } from '../../../src/domains/prescription';
+import { MistralPrescriptionUnderstandingFactory } from '../../../src/domains/prescription';
 
 describe('Library real-world integration', () => {
   it(
@@ -20,7 +20,7 @@ describe('Library real-world integration', () => {
         throw new Error('MISTRAL_API_KEY is required for integration tests');
       }
 
-      const mistral = MistralPrescriptionUnderstanding({
+      const mistral = MistralPrescriptionUnderstandingFactory({
         apiKey: process.env.MISTRAL_API_KEY,
       });
 

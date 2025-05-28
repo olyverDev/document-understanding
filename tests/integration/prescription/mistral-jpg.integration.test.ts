@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import type { VisualDocument } from '../../../src';
-import { MistralPrescriptionUnderstanding } from '../../../src/domains/prescription';
+import { MistralPrescriptionUnderstandingFactory } from '../../../src/domains/prescription';
 import type { PrescriptionDocument } from '../../../src/domains/prescription';
 
 const prescriptionVerificationMode = process.env.PRESCRIPTION_VERIFICATION_MODE;
@@ -49,7 +49,7 @@ describe('Mistral OCR + Structuring — Integration Suite', () => {
     throw new Error('MISTRAL_API_KEY is required for integration tests');
   }
 
-  const mistral = MistralPrescriptionUnderstanding({
+  const mistral = MistralPrescriptionUnderstandingFactory({
     apiKey: MISTRAL_API_KEY,
   });
 

@@ -1,7 +1,7 @@
-import { MistralPrescriptionUnderstanding } from '../../../src/domains/prescription';
+import { MistralPrescriptionUnderstandingFactory } from '../../../src/domains/prescription';
 
 describe('Library real-world integration (URL-based)', () => {
-  const mistral = MistralPrescriptionUnderstanding({
+  const mistral = MistralPrescriptionUnderstandingFactory({
     apiKey: process.env.MISTRAL_API_KEY!,
   });
 
