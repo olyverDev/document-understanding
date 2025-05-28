@@ -1,5 +1,6 @@
-import { V as VisualDocument, S as StructuringFactors, U as UnderstandingEngine } from './service-wDlDx4Rs.mjs';
-export { D as DocumentUnderstandingService } from './service-wDlDx4Rs.mjs';
+import { V as VisualDocument, U as UnderstandingEngine } from './service-B8KzHMnR.mjs';
+export { D as DocumentUnderstandingService } from './service-B8KzHMnR.mjs';
+import { JsonSchema } from '@mistralai/mistralai/models/components';
 
 interface OCR {
     /**
@@ -11,46 +12,61 @@ interface OCR {
 }
 
 /**
- * Interface for adapters capable of transforming unstructured text
- * into structured data using prompts, schemas, or other logic.
+ * Interface for adapters capable of transforming raw text
+ * into structured data using prompts, schemas, or logic engines.
  *
- * This abstraction allows pluggable implementations such as:
- * - LLM-based structuring (e.g. Mistral, OpenAI)
- * - Heuristic-based or rule-based structuring
- * - Hybrid logic engines
+ * This abstraction supports various strategies such as:
+ * - LLM-based structuring (e.g., Mistral, OpenAI)
+ * - Heuristic or rule-based processing/parsing
+ * - Hybrid systems
  *
  * @template T - The expected structured output type.
  */
-interface TextStructuring<T = unknown> {
+interface TextStructuring<T, C = unknown> {
     /**
-     * Parses raw text content into structured output.
+     * Parses raw text into a structured format.
      *
-     * @param text - The raw text to be structured (e.g., from OCR or any source).
-     * @param options - StructuringFactors providing prompt and optional schema.
-     * @param options.prompt - Prompt to guide the structuring logic (especially for LLMs).
-     * @param options.outputSchema - Optional JSON Schema object to define the expected structure of the result.
+     * @param text - The input text to structure.
+     * @param options - optional context/configuration (e.g. rules for the Parser, prompt-schema pair for LLM)
      *
      * @returns A Promise resolving to structured output of type `T`.
-     * @throws May throw an error if parsing fails, input is invalid, or a provider is misconfigured.
+     * @throws If parsing fails or the input/provider is invalid.
      */
-    parse(text: string, options: StructuringFactors): Promise<T>;
+    parse(text: string, context?: C): Promise<T>;
 }
 
-declare class OCRTextUnderstanding<T> implements UnderstandingEngine<T> {
+declare class OCRTextUnderstanding<T, C = unknown> implements UnderstandingEngine<T, C> {
     private readonly ocr;
     private readonly textStructuring;
-    constructor(ocr: OCR, textStructuring: TextStructuring<T>);
-    understand(document: VisualDocument, factors: StructuringFactors): Promise<T>;
+    constructor(ocr: OCR, textStructuring: TextStructuring<T, C>);
+    understand(document: VisualDocument, context?: C): Promise<T>;
 }
 
-interface VisualStructuring<T> {
-    parse(input: VisualDocument, options: StructuringFactors): Promise<T>;
+/**
+ * Interface for adapters that directly process visual documents
+ * to produce structured data using a combination of OCR and Structuring under the hood,
+ * also prompts, and schemas.
+ *
+ * This abstraction is useful for end-to-end visual understanding flows.
+ *
+ * @template T - The expected structured output type.
+ */
+interface VisualStructuring<T, C = unknown> {
+    /**
+     * Parses a visual document (e.g., image or PDF) into structured output.
+     *
+     * @param input - The visual document to process.
+     * @param context - optional context (e.g. Prompt and optional Schema for LLM)
+     * @returns A Promise resolving to structured output of type `T`.
+     * @throws If visual parsing fails or the provider is misconfigured.
+     */
+    parse(input: VisualDocument, context?: C): Promise<T>;
 }
 
-declare class VisualUnderstanding<T> implements UnderstandingEngine<T> {
+declare class VisualUnderstanding<T, C = unknown> implements UnderstandingEngine<T, C> {
     private readonly adapter;
-    constructor(adapter: VisualStructuring<T>);
-    understand(document: VisualDocument, factors: StructuringFactors): Promise<T>;
+    constructor(adapter: VisualStructuring<T, C>);
+    understand(document: VisualDocument, context?: C): Promise<T>;
 }
 
 declare const Providers: {
@@ -68,25 +84,33 @@ declare const OCRProvidersRegistry: {
 };
 type OCRProvidersRegistryType = typeof OCRProvidersRegistry;
 
+interface MistralTextStructuringContext {
+    prompt: string;
+    outputSchema: JsonSchema['schemaDefinition'];
+}
 type MistralTextStructuringFactoryConfig = {
     apiKey: string;
     model?: string;
 };
 
 declare const TextStructuringProvidersRegistry: {
-    readonly mistral: <T>(config: MistralTextStructuringFactoryConfig) => TextStructuring<T>;
+    readonly mistral: <T>(config: MistralTextStructuringFactoryConfig) => TextStructuring<T, MistralTextStructuringContext>;
 };
 type TextStructuringProvidersRegistryType = typeof TextStructuringProvidersRegistry;
 
+interface MistralVisualStructuringContext {
+    prompt: string;
+    outputSchema?: JsonSchema['schemaDefinition'];
+}
 interface MistralVisualStructuringFactoryConfig {
     apiKey: string;
     model?: string;
 }
-declare function MistralVisualStructuringFactory<T>(config: MistralVisualStructuringFactoryConfig): VisualStructuring<T>;
+declare function MistralVisualStructuringFactory<T>(config: MistralVisualStructuringFactoryConfig): VisualStructuring<T, MistralVisualStructuringContext>;
 
 declare const VisualStructuringProvidersRegistry: {
     readonly mistral: typeof MistralVisualStructuringFactory;
 };
 type VisualStructuringProvidersRegistryType = typeof VisualStructuringProvidersRegistry;
 
-export { OCRProvidersRegistry, type OCRProvidersRegistryType, OCRTextUnderstanding, type ProviderName, Providers, StructuringFactors, TextStructuringProvidersRegistry, type TextStructuringProvidersRegistryType, VisualDocument, VisualStructuringProvidersRegistry, type VisualStructuringProvidersRegistryType, VisualUnderstanding };
+export { OCRProvidersRegistry, type OCRProvidersRegistryType, OCRTextUnderstanding, type ProviderName, Providers, TextStructuringProvidersRegistry, type TextStructuringProvidersRegistryType, VisualDocument, VisualStructuringProvidersRegistry, type VisualStructuringProvidersRegistryType, VisualUnderstanding };

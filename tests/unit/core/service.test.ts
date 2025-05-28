@@ -1,5 +1,5 @@
 import { DocumentUnderstandingService } from '../../../src/core/service';
-import type { UnderstandingEngine } from '../../../src/engine/understanding-engine';
+import type { UnderstandingEngine } from '../../../src/engine/understanding-engine.interface';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
 describe('DocumentUnderstandingService', () => {

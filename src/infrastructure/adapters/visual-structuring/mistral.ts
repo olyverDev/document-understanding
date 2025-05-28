@@ -3,7 +3,6 @@ import type { ContentChunk, JsonSchema } from '@mistralai/mistralai/models/compo
 
 import { VisualStructuringError } from '../../../errors/visual-structuring';
 import type { VisualStructuring } from '../../../ports/visual-structuring.interface';
-import { StructuringFactors } from '../../../typings/structuring-factors';
 import type { VisualDocument } from '../../../typings/visual-document';
 import { getMistralSingletonClient } from '../../api/mistral-client';
 
@@ -11,7 +10,12 @@ interface MistralVisualStructuringConfig {
   model: string;
 }
 
-export class MistralVisualStructuring<T> implements VisualStructuring<T> {
+export interface MistralVisualStructuringContext {
+  prompt: string;
+  outputSchema?: JsonSchema['schemaDefinition'];
+}
+
+export class MistralVisualStructuring<T> implements VisualStructuring<T, MistralVisualStructuringContext> {
   private readonly modelName: string;
 
   constructor(
@@ -64,7 +68,7 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T> {
   async parse(input: VisualDocument, {
     prompt,
     outputSchema,
-  }: StructuringFactors): Promise<T> {
+  }: MistralVisualStructuringContext): Promise<T> {
     const contentChunk = this.convertDocumentToContentChunk(input);
 
     const messageContent: ContentChunk[] = [
@@ -86,9 +90,9 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T> {
               type: 'json_schema',
               jsonSchema: {
                 strict: true,
-                schemaDefinition: outputSchema as JsonSchema['schemaDefinition'],
-                name: outputSchema.title as string,
-                description: outputSchema.description as string,
+                schemaDefinition: outputSchema,
+                name: outputSchema.title,
+                description: outputSchema.description,
               },
             }
           : {
@@ -125,7 +129,7 @@ interface MistralVisualStructuringFactoryConfig {
 
 export function MistralVisualStructuringFactory<T>(
   config: MistralVisualStructuringFactoryConfig
-): VisualStructuring<T> {
+): VisualStructuring<T, MistralVisualStructuringContext> {
   const client = getMistralSingletonClient({ apiKey: config.apiKey });
 
   return new MistralVisualStructuring<T>(client, {

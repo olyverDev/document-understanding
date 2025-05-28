@@ -30,16 +30,12 @@ module.exports = __toCommonJS(index_exports);
 
 // src/core/service.ts
 var DocumentUnderstandingService = class {
-  constructor(engine, prompt, outputSchema) {
+  constructor(engine, engineContext) {
     this.engine = engine;
-    this.prompt = prompt;
-    this.outputSchema = outputSchema;
+    this.engineContext = engineContext;
   }
   async understand(document) {
-    return this.engine.understand(document, {
-      prompt: this.prompt,
-      outputSchema: this.outputSchema
-    });
+    return this.engine.understand(document, this.engineContext);
   }
 };
 
@@ -173,7 +169,7 @@ var MistralTextStructuring = class {
             content: messageContent
           }
         ],
-        responseFormat: outputSchema ? {
+        responseFormat: {
           type: "json_schema",
           jsonSchema: {
             strict: true,
@@ -181,8 +177,6 @@ var MistralTextStructuring = class {
             name: outputSchema.title,
             description: outputSchema.description
           }
-        } : {
-          type: "json_object"
         }
       });
       const rawOutput = chatResponse?.choices?.[0].message?.content;
