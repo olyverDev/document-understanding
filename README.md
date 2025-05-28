@@ -12,14 +12,14 @@ Currently supports parsing **Eye Prescriptions** photos/documents using the Mist
 
 The library provides a high-level service factory for extracting structured data from prescription documents using LLM-based document/text structuring and OCR. You can create a reusable instance using the built-in Mistral-powered factory.
 
-#### Using `MistralPrescriptionUnderstanding`
+#### Using `MistralPrescriptionUnderstandingFactory`
 
 ```ts
-import { MistralPrescriptionUnderstanding } from 'document-understanding/prescription';
+import { MistralPrescriptionUnderstandingFactory } from 'document-understanding/prescription';
 import type { PrescriptionDocuments } from 'document-understanding/prescription';
 import type { VisualDocument } from 'document-understanding';
 
-const service = MistralPrescriptionUnderstanding({
+const prescriptionUnderstanding = MistralPrescriptionUnderstandingFactory({
   apiKey: 'sk-...',
   model: 'mistral-medium-latest', // optional
 });
@@ -30,7 +30,18 @@ const base64ImageInput: VisualDocument = {
   documentType: 'image',
 };
 
-const result: PrescriptionDocuments = await service.understand(base64ImageInput);
+if (!prescriptionUnderstanding.isInitialized) {
+/**
+ * Handle this situation if you want, like:
+ * console.error(prescriptionUnderstanding.error)
+ * 
+ * It is obligatory to use this check in TypeScript projects
+ * In usual projects you can use `prescriptionUnderstanding?.service?.understand`
+ * or check against service
+ */
+}
+
+const result: PrescriptionDocuments = await prescriptionUnderstanding.service.understand(base64ImageInput);
 ```
 
 More [VisualDocument examples](docs/inputs.md)
