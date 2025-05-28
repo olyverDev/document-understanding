@@ -71,18 +71,17 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T, Mistral
   }: MistralVisualStructuringContext): Promise<T> {
     const contentChunk = this.convertDocumentToContentChunk(input);
 
-    const messageContent: ContentChunk[] = [
-      { type: 'text', text: prompt },
-      contentChunk,
-    ];
-
     try {
       const response = await this.client.chat.complete({
         model: this.modelName,
         messages: [
           {
+            role: 'system',
+            content: [{ type: 'text', text: prompt }],
+          },
+          {
             role: 'user',
-            content: messageContent,
+            content: [contentChunk],
           },
         ],
         responseFormat: outputSchema

@@ -28,21 +28,17 @@ export class MistralTextStructuring<T> implements TextStructuring<T, MistralText
     prompt,
     outputSchema,
   }: MistralTextStructuringContext): Promise<T> {
-    const messageContent: ContentChunk[] = [
-      { type: "text", text: prompt },
-      {
-        type: "text",
-        text: `### File content in Markdown: ${text}`,
-      },
-    ];
-
     try {
       const chatResponse = await this.client.chat.complete({
         model: this.modelName,
         messages: [
           {
-            role: "user",
-            content: messageContent,
+            role: 'system',
+            content: [{ type: 'text', text: prompt }],
+          },
+          {
+            role: 'user',
+            content: [{ type: 'text', text: `### File content in Markdown:\n${text}` }],
           },
         ],
         responseFormat: {
