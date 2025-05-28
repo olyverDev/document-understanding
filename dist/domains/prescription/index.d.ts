@@ -42,7 +42,7 @@ var items = {
 				},
 				firstName: {
 					type: "string",
-					description: "Patient's first name. May be composed of multiple parts. Salutations like 'Madame', 'Monsieur' must be excluded."
+					description: "Patient's first name. May start with salutations like Madam, Monsieur or similar"
 				},
 				lastName: {
 					type: "string",

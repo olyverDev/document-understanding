@@ -123,20 +123,18 @@ var MistralTextStructuring = class {
     prompt,
     outputSchema
   }) {
-    const messageContent = [
-      { type: "text", text: prompt },
-      {
-        type: "text",
-        text: `### File content in Markdown: ${text}`
-      }
-    ];
     try {
       const chatResponse = await this.client.chat.complete({
         model: this.modelName,
         messages: [
           {
+            role: "system",
+            content: [{ type: "text", text: prompt }]
+          },
+          {
             role: "user",
-            content: messageContent
+            content: [{ type: "text", text: `### File content in Markdown:
+${text}` }]
           }
         ],
         responseFormat: {
@@ -220,17 +218,17 @@ var MistralVisualStructuring = class {
     outputSchema
   }) {
     const contentChunk = this.convertDocumentToContentChunk(input);
-    const messageContent = [
-      { type: "text", text: prompt },
-      contentChunk
-    ];
     try {
       const response = await this.client.chat.complete({
         model: this.modelName,
         messages: [
           {
+            role: "system",
+            content: [{ type: "text", text: prompt }]
+          },
+          {
             role: "user",
-            content: messageContent
+            content: [contentChunk]
           }
         ],
         responseFormat: outputSchema ? {
