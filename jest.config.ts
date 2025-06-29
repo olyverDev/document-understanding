@@ -8,9 +8,6 @@ const config: Config = {
     '**/?(*.)test.ts',
     '**/?(*.)integration.test.ts',
   ],
-  moduleNameMapper: {
-    '^document-understanding$': '<rootDir>/dist/index.js',
-  },
   setupFiles: ['<rootDir>/tests/jest.setup.ts'],
 };
 

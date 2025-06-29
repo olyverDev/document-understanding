@@ -10,9 +10,9 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./prescription": {
-      "import": "./dist/domains/prescription/index.js",
-      "require": "./dist/domains/prescription/index.cjs"
+    "./menu": {
+      "import": "./dist/domains/menu/index.js",
+      "require": "./dist/domains/menu/index.cjs"
     },
     "./errors": {
       "import": "./dist/errors/index.js",
@@ -31,8 +31,8 @@
     "ts:compile": "tsc --noEmit"
   },
   "dependencies": {
-    "@mistralai/mistralai": "^1.5.2",
-    "zod": "^3.24.4"
+    "@mistralai/mistralai": "^1.7.1",
+    "zod": "^3.25.36"
   },
   "devDependencies": {
     "@eslint/js": "^9.27.0",

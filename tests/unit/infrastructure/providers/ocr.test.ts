@@ -1,47 +1,52 @@
-import { MistralOCR } from '../../../../src/infrastructure/adapters/ocr/mistral';
-import { getMistralSingletonClient } from '../../../../src/infrastructure/api/mistral-client';
+import { Mistral } from '@mistralai/mistralai';
+
+import { MistralOCRVariant } from '../../../../src/infrastructure/adapters/ocr/mistral';
+import { MistralMarkdownOCR } from '../../../../src/infrastructure/adapters/ocr/mistral/markdown';
+import { MistralTextChunksOCR } from '../../../../src/infrastructure/adapters/ocr/mistral/text-chunks';
 import { OCRProvidersRegistry } from '../../../../src/infrastructure/providers/ocr';
 import { Providers } from '../../../../src/infrastructure/providers/variants';
 
-jest.mock('../../../../src/infrastructure/api/mistral-client', () => {
-  const mockClient = { fake: true };
-  return {
-    getMistralSingletonClient: jest.fn(() => mockClient),
-  };
-});
-
 describe('OCRProvidersRegistry', () => {
-  const mockApiKey = 'sk-test';
-  const mockedGetClient = getMistralSingletonClient as jest.Mock;
+  const mockClient = {} as unknown as Mistral;
 
-  it('creates MistralOCR with model override', () => {
-    const ocr = OCRProvidersRegistry[Providers.Mistral]({
-      apiKey: mockApiKey,
-      model: 'mistral-ocr-latest',
+  it('includes Mistral with a factory function', () => {
+    expect(Object.keys(OCRProvidersRegistry)).toContain(Providers.Mistral);
+    expect(typeof OCRProvidersRegistry[Providers.Mistral]).toBe('function');
+  });
+
+  it('returns MistralTextChunksOCR by default', () => {
+    const instance = OCRProvidersRegistry[Providers.Mistral]({ client: mockClient });
+    expect(instance).toBeInstanceOf(MistralTextChunksOCR);
+  });
+
+  it('returns MistralTextChunksOCR when variant is passed', () => {
+    const instance = OCRProvidersRegistry[Providers.Mistral]({
+      client: mockClient,
+      variant: MistralOCRVariant.TextChunks,
     });
-
-    expect(ocr).toBeInstanceOf(MistralOCR);
+    expect(instance).toBeInstanceOf(MistralTextChunksOCR);
   });
 
-  it('defaults to `mistral-ocr-latest` if model not provided', () => {
-    const ocr = OCRProvidersRegistry[Providers.Mistral]({
-      apiKey: mockApiKey,
+  it('returns MistralMarkdownOCR when variant is passed', () => {
+    const instance = OCRProvidersRegistry[Providers.Mistral]({
+      client: mockClient,
+      variant: MistralOCRVariant.Markdown,
     });
-
-    expect(ocr).toBeInstanceOf(MistralOCR);
+    expect(instance).toBeInstanceOf(MistralMarkdownOCR);
   });
 
-  it('reuses the same client instance for same API key', () => {
-    mockedGetClient.mockClear();
-
-    OCRProvidersRegistry[Providers.Mistral]({ apiKey: mockApiKey });
-    OCRProvidersRegistry[Providers.Mistral]({ apiKey: mockApiKey });
-
-    expect(mockedGetClient).toHaveBeenCalledTimes(2);
-    expect(mockedGetClient).toHaveBeenCalledWith({ apiKey: mockApiKey });
+  it('uses default model when model is not provided', () => {
+    const instance = OCRProvidersRegistry[Providers.Mistral]({ client: mockClient });
+    // @ts-expect-error accessing protected for test
+    expect(instance.model).toBe('mistral-ocr-latest');
   });
 
-  it('has correct provider key', () => {
-    expect(Object.keys(OCRProvidersRegistry)).toEqual([Providers.Mistral]);
+  it('uses provided model when passed', () => {
+    const instance = OCRProvidersRegistry[Providers.Mistral]({
+      client: mockClient,
+      model: 'custom-model',
+    });
+    // @ts-expect-error accessing protected for test
+    expect(instance.model).toBe('custom-model');
   });
 });

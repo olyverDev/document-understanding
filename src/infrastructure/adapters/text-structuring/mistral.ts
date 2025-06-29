@@ -3,7 +3,6 @@ import type { ContentChunk, JsonSchema } from "@mistralai/mistralai/models/compo
 
 import { TextStructuringError } from "../../../errors/text-structuring";
 import type { TextStructuring } from "../../../ports/text-structuring.interface";
-import { getMistralSingletonClient } from "../../api/mistral-client";
 
 interface MistralTextStructuringConfig {
   model: string;
@@ -30,10 +29,7 @@ export class MistralTextStructuring<T> implements TextStructuring<T, MistralText
   }: MistralTextStructuringContext): Promise<T> {
     const messageContent: ContentChunk[] = [
       { type: "text", text: prompt },
-      {
-        type: "text",
-        text: `### File content in Markdown: ${text}`,
-      },
+      { type: "text", text },
     ];
 
     try {
@@ -81,15 +77,14 @@ export class MistralTextStructuring<T> implements TextStructuring<T, MistralText
 }
 
 export type MistralTextStructuringFactoryConfig = {
-  apiKey: string;
+  client: Mistral;
   model?: string;
 };
 
 export const MistralTextStructuringFactory = <T>(
   config: MistralTextStructuringFactoryConfig
 ): TextStructuring<T, MistralTextStructuringContext> => {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-  return new MistralTextStructuring<T>(client, {
+  return new MistralTextStructuring<T>(config.client, {
     model: config.model ?? 'mistral-medium-latest',
   });
 };
