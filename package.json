@@ -10,9 +10,9 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./prescription": {
-      "import": "./dist/domains/prescription/index.js",
-      "require": "./dist/domains/prescription/index.cjs"
+    "./menu": {
+      "import": "./dist/domains/menu/index.js",
+      "require": "./dist/domains/menu/index.cjs"
     },
     "./errors": {
       "import": "./dist/errors/index.js",

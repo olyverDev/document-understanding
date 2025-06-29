@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: [
     'src/index.ts',
-    'src/domains/prescription/index.ts',
+    'src/domains/menu/index.ts',
     'src/errors/index.ts',
   ],
   format: ['esm', 'cjs'],
