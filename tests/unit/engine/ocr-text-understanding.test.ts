@@ -4,59 +4,80 @@ import type { TextStructuring } from '../../../src/ports/text-structuring.interf
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
 describe('OCRTextUnderstanding', () => {
-  const mockOCR: OCR = {
-    recognizeText: jest.fn(),
-  };
+  const recognize = jest.fn();
+  const parse = jest.fn();
 
-  const mockTextStructuring: TextStructuring<{ value: string }> = {
-    parse: jest.fn(),
-  };
+  const mockOCR: OCR<string> = { recognize };
+  const mockTextStructuring: TextStructuring<{ value: string }> = { parse };
 
   const adapter = new OCRTextUnderstanding(mockOCR, mockTextStructuring);
 
-  const document: VisualDocument = {
+  const input: VisualDocument = {
     source: 'base64',
     file: 'img==',
     documentType: 'image',
   };
 
-  const context = {
-    prompt: 'Extract value',
-  };
+  const context = { prompt: 'Extract value' };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('extracts and parses OCR text successfully', async () => {
-    (mockOCR.recognizeText as jest.Mock).mockResolvedValueOnce('markdown text');
-    (mockTextStructuring.parse as jest.Mock).mockResolvedValueOnce({ value: 'done' });
+  it('successfully performs OCR and parses the result', async () => {
+    recognize.mockResolvedValueOnce('markdown text');
+    parse.mockResolvedValueOnce({ value: 'done' });
 
-    const result = await adapter.understand(document, context);
+    const result = await adapter.understand(input, context);
 
-    expect(mockOCR.recognizeText).toHaveBeenCalledWith(document);
-    expect(mockTextStructuring.parse).toHaveBeenCalledWith('markdown text', context);
+    expect(recognize).toHaveBeenCalledWith(input);
+    expect(parse).toHaveBeenCalledWith('markdown text', context);
     expect(result).toEqual({ value: 'done' });
   });
 
-  it('throws if OCR returns empty text', async () => {
-    (mockOCR.recognizeText as jest.Mock).mockResolvedValueOnce('');
+  it('parses empty OCR result as valid', async () => {
+    recognize.mockResolvedValueOnce('');
+    parse.mockResolvedValueOnce({ value: 'empty-ok' });
 
-    await expect(adapter.understand(document, context)).rejects.toThrow('OCR returned no text');
+    const result = await adapter.understand(input, context);
+
+    expect(parse).toHaveBeenCalledWith('', context);
+    expect(result).toEqual({ value: 'empty-ok' });
   });
 
-  it('propagates OCR errors', async () => {
+  it('parses whitespace OCR result as valid', async () => {
+    recognize.mockResolvedValueOnce('   ');
+    parse.mockResolvedValueOnce({ value: 'spaces-ok' });
+
+    const result = await adapter.understand(input, context);
+
+    expect(parse).toHaveBeenCalledWith('   ', context);
+    expect(result).toEqual({ value: 'spaces-ok' });
+  });
+
+  it('throws if OCR returns an object instead of a string', async () => {
+    const invalidResult = {
+      markdown: '# Heading',
+      images: [],
+    };
+
+    recognize.mockResolvedValueOnce(invalidResult);
+
+    await expect(adapter.understand(input, context)).rejects.toThrow();
+  });
+
+  it('propagates error if OCR fails', async () => {
     const error = new Error('OCR failed');
-    (mockOCR.recognizeText as jest.Mock).mockRejectedValueOnce(error);
+    recognize.mockRejectedValueOnce(error);
 
-    await expect(adapter.understand(document, context)).rejects.toThrow(error);
+    await expect(adapter.understand(input, context)).rejects.toThrow(error);
   });
 
-  it('propagates parsing errors', async () => {
-    (mockOCR.recognizeText as jest.Mock).mockResolvedValueOnce('text');
+  it('propagates error if parsing fails', async () => {
+    recognize.mockResolvedValueOnce('some text');
     const error = new Error('Parse failed');
-    (mockTextStructuring.parse as jest.Mock).mockRejectedValueOnce(error);
+    parse.mockRejectedValueOnce(error);
 
-    await expect(adapter.understand(document, context)).rejects.toThrow(error);
+    await expect(adapter.understand(input, context)).rejects.toThrow(error);
   });
 });

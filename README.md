@@ -8,20 +8,26 @@ Currently supports parsing **Eye Prescriptions** photos/documents using the Mist
 
 ### Domains
 
-#### Prescription
+#### Menu
 
-The library provides a high-level service factory for extracting structured data from prescription documents using LLM-based document/text structuring and OCR. You can create a reusable instance using the built-in Mistral-powered factory.
+The library provides a high-level service factory for extracting structured data from text-only restaurant menus using LLM-based document/text structuring and OCR. You can create a reusable instance using the built-in Mistral-powered factory.
 
-#### Using `MistralPrescriptionUnderstandingFactory`
+#### Using `MistralMenuUnderstandingFactory`
 
 ```ts
-import { MistralPrescriptionUnderstandingFactory } from 'document-understanding/prescription';
-import type { PrescriptionDocuments } from 'document-understanding/prescription';
+import { MistralMenuUnderstandingFactory } from 'document-understanding/menu';
+import type { MenuItemsList } from 'document-understanding/menu';
 import type { VisualDocument } from 'document-understanding';
 
-const prescriptionUnderstanding = MistralPrescriptionUnderstandingFactory({
+const menuUnderstanding = MistralMenuUnderstandingFactory({
   apiKey: 'sk-...',
-  model: 'mistral-medium-latest', // optional
+  // optional and partial model overrides
+  models: {
+    ocr: 'mistral-ocr-latest',
+    llm: 'mistral-medium-latest',
+  },
+  // optional client-wide timeout in milliseconds
+  timeoutMs: 30_000,
 });
 
 const base64ImageInput: VisualDocument = {
@@ -30,27 +36,27 @@ const base64ImageInput: VisualDocument = {
   documentType: 'image',
 };
 
-if (!prescriptionUnderstanding.isInitialized) {
-/**
- * Handle this situation if you want, like:
- * console.error(prescriptionUnderstanding.error)
- * 
- * It is obligatory to use this check in TypeScript projects
- * In usual projects you can use `prescriptionUnderstanding?.service?.understand`
- * or check against service
- */
+if (!menuUnderstanding.isInitialized) {
+  /**
+   * Handle initialization failure gracefully, e.g.:
+   * console.error(menuUnderstanding.error)
+   *
+   * This check is required in TypeScript projects for safe access.
+   * In looser environments, you can use `menuUnderstanding?.service?.understand`
+   * or `if (menuUnderstanding.service)` to continue.
+   */
 }
 
-const result: PrescriptionDocuments = await prescriptionUnderstanding.service.understand(base64ImageInput);
+const result: MenuItemsList = await menuUnderstanding.service.understand(base64ImageInput);
 ```
 
 More [VisualDocument examples](docs/inputs.md)
 
-### Prescription domain-specific context
+### Menu domain-specific context
 
-[LLM Prompt](src/domains/prescription/prompt.ts) (designed rather for Mistral, but would fit any LLM)
+[LLM Prompt](src/domains/menu/prompt.ts) — tuned to extract cleanly structured dishes, prices, and categories from printed or photographed menus.
 
-[Prescription JSON Schema](src/domains/prescription/schema.json)
+[JSON Schema](src/domains/menu/schema.json) — defines a strongly typed format for consistent downstream usage and visualization.
 
 ## Build & Scripts notes
 

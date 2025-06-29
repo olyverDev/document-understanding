@@ -1,8 +1,8 @@
-export const Providers = {
-  Mistral: 'mistral',
-  // tesseract: 'Tesseract',
-  // openai: 'Openai',
+export enum Providers {
+  Mistral = 'mistral',
+  // Tesseract = 'Tesseract',
+  // OpenAI = 'openai',
   // ...
-} as const;
+}
 
-export type ProviderName = (typeof Providers)[keyof typeof Providers];
+export type ProviderName = Providers;

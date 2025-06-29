@@ -4,7 +4,6 @@ import type { ContentChunk, JsonSchema } from '@mistralai/mistralai/models/compo
 import { VisualStructuringError } from '../../../errors/visual-structuring';
 import type { VisualStructuring } from '../../../ports/visual-structuring.interface';
 import type { VisualDocument } from '../../../typings/visual-document';
-import { getMistralSingletonClient } from '../../api/mistral-client';
 
 interface MistralVisualStructuringConfig {
   model: string;
@@ -123,16 +122,14 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T, Mistral
 }
 
 interface MistralVisualStructuringFactoryConfig {
-  apiKey: string;
+  client: Mistral;
   model?: string;
 }
 
 export function MistralVisualStructuringFactory<T>(
   config: MistralVisualStructuringFactoryConfig
 ): VisualStructuring<T, MistralVisualStructuringContext> {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-
-  return new MistralVisualStructuring<T>(client, {
+  return new MistralVisualStructuring<T>(config.client, {
     model: config.model ?? 'mistral-medium-latest',
   });
 }
