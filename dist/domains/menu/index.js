@@ -9,18 +9,13 @@ var DocumentUnderstandingService = class {
   }
 };
 
-// src/engine/ocr-text-understanding.ts
-var OCRTextUnderstanding = class {
-  constructor(ocr, textStructuring) {
-    this.ocr = ocr;
-    this.textStructuring = textStructuring;
+// src/engine/visual-understanding.ts
+var VisualUnderstanding = class {
+  constructor(adapter) {
+    this.adapter = adapter;
   }
-  async understand(document, context) {
-    const recognized = await this.ocr.recognize(document);
-    if (typeof recognized !== "string") {
-      throw new Error("Invalid OCR result \u2014 expected string output for this engine");
-    }
-    return this.textStructuring.parse(recognized, context);
+  understand(document, context) {
+    return this.adapter.parse(document, context);
   }
 };
 
@@ -405,17 +400,12 @@ function MistralMenuUnderstandingFactory(options) {
       apiKey: options.apiKey,
       timeoutMs: options.timeoutMs
     });
-    const mistralOCRAdapter = OCRProvidersRegistry["mistral" /* Mistral */]({
-      client,
-      model: options.models?.ocr
-    });
-    const mistralTextStructuringAdapter = TextStructuringProvidersRegistry["mistral" /* Mistral */]({
+    const mistralVisualStructuringAdapter = VisualStructuringProvidersRegistry["mistral" /* Mistral */]({
       client,
       model: options.models?.llm
     });
-    const engine = new OCRTextUnderstanding(
-      mistralOCRAdapter,
-      mistralTextStructuringAdapter
+    const engine = new VisualUnderstanding(
+      mistralVisualStructuringAdapter
     );
     const engineContext = {
       prompt: prompt_default,

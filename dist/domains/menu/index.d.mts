@@ -108,7 +108,7 @@ type MistralResult = {
     error?: Error;
 };
 /**
- * @docs Menu Understanding – Mistral OCR + Text Understanding Pipeline
+ * @docs Menu Understanding – Mistral Visual Understanding
  *
  * This implementation uses the Mistral OCR and Completion APIs to perform
  * two-step **Image-To-Text** + **Text-To-Structured JSON** transformation,

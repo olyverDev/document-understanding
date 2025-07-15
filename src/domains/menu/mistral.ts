@@ -1,11 +1,10 @@
 import { DocumentUnderstandingService } from '../../core/service';
-import { OCRTextUnderstanding } from '../../engine/ocr-text-understanding';
-import { MistralTextStructuringContext } from '../../infrastructure/adapters/text-structuring/mistral';
+import { VisualUnderstanding } from '../../engine/visual-understanding';
+import { MistralVisualStructuringContext } from '../../infrastructure/adapters/visual-structuring/mistral';
 import { getMistralSingletonClient } from '../../infrastructure/api/mistral-client';
 import {
-  OCRProvidersRegistry,
   Providers,
-  TextStructuringProvidersRegistry,
+  VisualStructuringProvidersRegistry,
 } from '../../infrastructure/providers';
 
 import type { MenuItemsList } from './models';
@@ -35,7 +34,7 @@ export type MistralResult = {
 };
 
 /**
- * @docs Menu Understanding – Mistral OCR + Text Understanding Pipeline
+ * @docs Menu Understanding – Mistral Visual Understanding
  *
  * This implementation uses the Mistral OCR and Completion APIs to perform
  * two-step **Image-To-Text** + **Text-To-Structured JSON** transformation,
@@ -54,19 +53,13 @@ export function MistralMenuUnderstandingFactory(
       timeoutMs: options.timeoutMs,
     });
 
-    const mistralOCRAdapter = OCRProvidersRegistry[Providers.Mistral]({
-      client,
-      model: options.models?.ocr,
-    });
-
-    const mistralTextStructuringAdapter = TextStructuringProvidersRegistry[Providers.Mistral]<MenuItemsList>({
+    const mistralVisualStructuringAdapter = VisualStructuringProvidersRegistry[Providers.Mistral]<MenuItemsList>({
       client,
       model: options.models?.llm,
     });
 
-    const engine = new OCRTextUnderstanding<MenuItemsList, MistralTextStructuringContext>(
-      mistralOCRAdapter,
-      mistralTextStructuringAdapter,
+    const engine = new VisualUnderstanding<MenuItemsList, MistralVisualStructuringContext>(
+      mistralVisualStructuringAdapter,
     );
 
     const engineContext: MenuUnderstandingContext = {
