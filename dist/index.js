@@ -296,11 +296,25 @@ function MistralVisualStructuringFactory(config) {
 var VisualStructuringProvidersRegistry = {
   ["mistral" /* Mistral */]: MistralVisualStructuringFactory
 };
+
+// src/infrastructure/api/mistral-client.ts
+import { Mistral } from "@mistralai/mistralai";
+var getMistralSingletonClient = /* @__PURE__ */ (() => {
+  const cache = /* @__PURE__ */ new Map();
+  return ({ apiKey, timeoutMs = 2e4 }) => {
+    if (!apiKey) throw new Error("Mistral requires an API key.");
+    if (cache.has(apiKey)) return cache.get(apiKey);
+    const client = new Mistral({ apiKey, timeoutMs });
+    cache.set(apiKey, client);
+    return client;
+  };
+})();
 export {
   DocumentUnderstandingService,
   OCRProvidersRegistry,
   Providers,
   TextStructuringProvidersRegistry,
-  VisualStructuringProvidersRegistry
+  VisualStructuringProvidersRegistry,
+  getMistralSingletonClient
 };
 //# sourceMappingURL=index.js.map

@@ -176,4 +176,9 @@ declare const VisualStructuringProvidersRegistry: {
 };
 type VisualStructuringProvidersRegistryType = typeof VisualStructuringProvidersRegistry;
 
-export { OCRProvidersRegistry, type OCRProvidersRegistryType, OCRTextUnderstanding, type ProviderName, Providers, TextStructuringProvidersRegistry, type TextStructuringProvidersRegistryType, VisualDocument, VisualStructuringProvidersRegistry, type VisualStructuringProvidersRegistryType, VisualUnderstanding };
+declare const getMistralSingletonClient: ({ apiKey, timeoutMs }: {
+    apiKey: string;
+    timeoutMs?: number;
+}) => Mistral;
+
+export { OCRProvidersRegistry, type OCRProvidersRegistryType, OCRTextUnderstanding, type ProviderName, Providers, TextStructuringProvidersRegistry, type TextStructuringProvidersRegistryType, VisualDocument, VisualStructuringProvidersRegistry, type VisualStructuringProvidersRegistryType, VisualUnderstanding, getMistralSingletonClient };

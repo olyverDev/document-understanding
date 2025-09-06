@@ -24,7 +24,8 @@ __export(index_exports, {
   OCRProvidersRegistry: () => OCRProvidersRegistry,
   Providers: () => Providers,
   TextStructuringProvidersRegistry: () => TextStructuringProvidersRegistry,
-  VisualStructuringProvidersRegistry: () => VisualStructuringProvidersRegistry
+  VisualStructuringProvidersRegistry: () => VisualStructuringProvidersRegistry,
+  getMistralSingletonClient: () => getMistralSingletonClient
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -326,12 +327,26 @@ function MistralVisualStructuringFactory(config) {
 var VisualStructuringProvidersRegistry = {
   ["mistral" /* Mistral */]: MistralVisualStructuringFactory
 };
+
+// src/infrastructure/api/mistral-client.ts
+var import_mistralai = require("@mistralai/mistralai");
+var getMistralSingletonClient = /* @__PURE__ */ (() => {
+  const cache = /* @__PURE__ */ new Map();
+  return ({ apiKey, timeoutMs = 2e4 }) => {
+    if (!apiKey) throw new Error("Mistral requires an API key.");
+    if (cache.has(apiKey)) return cache.get(apiKey);
+    const client = new import_mistralai.Mistral({ apiKey, timeoutMs });
+    cache.set(apiKey, client);
+    return client;
+  };
+})();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DocumentUnderstandingService,
   OCRProvidersRegistry,
   Providers,
   TextStructuringProvidersRegistry,
-  VisualStructuringProvidersRegistry
+  VisualStructuringProvidersRegistry,
+  getMistralSingletonClient
 });
 //# sourceMappingURL=index.cjs.map
