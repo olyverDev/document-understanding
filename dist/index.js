@@ -9,6 +9,31 @@ var DocumentUnderstandingService = class {
   }
 };
 
+// src/engine/ocr-text-understanding.ts
+var OCRTextUnderstanding = class {
+  constructor(ocr, textStructuring) {
+    this.ocr = ocr;
+    this.textStructuring = textStructuring;
+  }
+  async understand(document, context) {
+    const recognized = await this.ocr.recognize(document);
+    if (typeof recognized !== "string") {
+      throw new Error("Invalid OCR result \u2014 expected string output for this engine");
+    }
+    return this.textStructuring.parse(recognized, context);
+  }
+};
+
+// src/engine/visual-understanding.ts
+var VisualUnderstanding = class {
+  constructor(adapter) {
+    this.adapter = adapter;
+  }
+  understand(document, context) {
+    return this.adapter.parse(document, context);
+  }
+};
+
 // src/infrastructure/providers/variants.ts
 var Providers = /* @__PURE__ */ ((Providers2) => {
   Providers2["Mistral"] = "mistral";
@@ -312,9 +337,11 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
 export {
   DocumentUnderstandingService,
   OCRProvidersRegistry,
+  OCRTextUnderstanding,
   Providers,
   TextStructuringProvidersRegistry,
   VisualStructuringProvidersRegistry,
+  VisualUnderstanding,
   getMistralSingletonClient
 };
 //# sourceMappingURL=index.js.map

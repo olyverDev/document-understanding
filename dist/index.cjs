@@ -22,9 +22,11 @@ var index_exports = {};
 __export(index_exports, {
   DocumentUnderstandingService: () => DocumentUnderstandingService,
   OCRProvidersRegistry: () => OCRProvidersRegistry,
+  OCRTextUnderstanding: () => OCRTextUnderstanding,
   Providers: () => Providers,
   TextStructuringProvidersRegistry: () => TextStructuringProvidersRegistry,
   VisualStructuringProvidersRegistry: () => VisualStructuringProvidersRegistry,
+  VisualUnderstanding: () => VisualUnderstanding,
   getMistralSingletonClient: () => getMistralSingletonClient
 });
 module.exports = __toCommonJS(index_exports);
@@ -37,6 +39,31 @@ var DocumentUnderstandingService = class {
   }
   async understand(document) {
     return this.engine.understand(document, this.engineContext);
+  }
+};
+
+// src/engine/ocr-text-understanding.ts
+var OCRTextUnderstanding = class {
+  constructor(ocr, textStructuring) {
+    this.ocr = ocr;
+    this.textStructuring = textStructuring;
+  }
+  async understand(document, context) {
+    const recognized = await this.ocr.recognize(document);
+    if (typeof recognized !== "string") {
+      throw new Error("Invalid OCR result \u2014 expected string output for this engine");
+    }
+    return this.textStructuring.parse(recognized, context);
+  }
+};
+
+// src/engine/visual-understanding.ts
+var VisualUnderstanding = class {
+  constructor(adapter) {
+    this.adapter = adapter;
+  }
+  understand(document, context) {
+    return this.adapter.parse(document, context);
   }
 };
 
@@ -344,9 +371,11 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
 0 && (module.exports = {
   DocumentUnderstandingService,
   OCRProvidersRegistry,
+  OCRTextUnderstanding,
   Providers,
   TextStructuringProvidersRegistry,
   VisualStructuringProvidersRegistry,
+  VisualUnderstanding,
   getMistralSingletonClient
 });
 //# sourceMappingURL=index.cjs.map
