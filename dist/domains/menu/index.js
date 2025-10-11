@@ -1,36 +1,3 @@
-"use strict";
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// src/index.ts
-var index_exports = {};
-__export(index_exports, {
-  DocumentUnderstandingService: () => DocumentUnderstandingService,
-  OCRProvidersRegistry: () => OCRProvidersRegistry,
-  OCRTextUnderstanding: () => OCRTextUnderstanding,
-  Providers: () => Providers,
-  TextStructuringProvidersRegistry: () => TextStructuringProvidersRegistry,
-  VisualStructuringProvidersRegistry: () => VisualStructuringProvidersRegistry,
-  VisualUnderstanding: () => VisualUnderstanding,
-  getMistralSingletonClient: () => getMistralSingletonClient
-});
-module.exports = __toCommonJS(index_exports);
-
 // src/core/service.ts
 var DocumentUnderstandingService = class {
   constructor(engine, engineContext) {
@@ -39,21 +6,6 @@ var DocumentUnderstandingService = class {
   }
   async understand(document) {
     return this.engine.understand(document, this.engineContext);
-  }
-};
-
-// src/engine/ocr-text-understanding.ts
-var OCRTextUnderstanding = class {
-  constructor(ocr, textStructuring) {
-    this.ocr = ocr;
-    this.textStructuring = textStructuring;
-  }
-  async understand(document, context) {
-    const recognized = await this.ocr.recognize(document);
-    if (typeof recognized !== "string") {
-      throw new Error("Invalid OCR result \u2014 expected string output for this engine");
-    }
-    return this.textStructuring.parse(recognized, context);
   }
 };
 
@@ -67,11 +19,18 @@ var VisualUnderstanding = class {
   }
 };
 
-// src/infrastructure/providers/variants.ts
-var Providers = /* @__PURE__ */ ((Providers2) => {
-  Providers2["Mistral"] = "mistral";
-  return Providers2;
-})(Providers || {});
+// src/infrastructure/api/mistral-client.ts
+import { Mistral } from "@mistralai/mistralai";
+var getMistralSingletonClient = /* @__PURE__ */ (() => {
+  const cache = /* @__PURE__ */ new Map();
+  return ({ apiKey, timeoutMs = 2e4 }) => {
+    if (!apiKey) throw new Error("Mistral requires an API key.");
+    if (cache.has(apiKey)) return cache.get(apiKey);
+    const client = new Mistral({ apiKey, timeoutMs });
+    cache.set(apiKey, client);
+    return client;
+  };
+})();
 
 // src/errors/ocr.ts
 var OCRProcessingError = class extends Error {
@@ -152,19 +111,19 @@ var MistralMarkdownOCR = class extends MistralOCRBase {
 };
 
 // src/infrastructure/adapters/ocr/mistral/text-chunks.ts
-var import_structChat = require("@mistralai/mistralai/extra/structChat");
-var import_zod = require("zod");
+import { responseFormatFromZodObject } from "@mistralai/mistralai/extra/structChat";
+import { z } from "zod";
 var MistralTextChunksOCR = class _MistralTextChunksOCR extends MistralOCRBase {
   static {
-    this.schema = import_zod.z.object({
-      textChunks: import_zod.z.array(import_zod.z.string()).describe(
+    this.schema = z.object({
+      textChunks: z.array(z.string()).describe(
         `An ordered list of plain text lines extracted from the document. 
       Extract everything as printed or handwritten text, not as illustrations, diagrams, images or tables.`
       )
     }).strict();
   }
   static {
-    this.documentAnnotationFormat = (0, import_structChat.responseFormatFromZodObject)(_MistralTextChunksOCR.schema);
+    this.documentAnnotationFormat = responseFormatFromZodObject(_MistralTextChunksOCR.schema);
   }
   async recognize(input) {
     try {
@@ -355,27 +314,113 @@ var VisualStructuringProvidersRegistry = {
   ["mistral" /* Mistral */]: MistralVisualStructuringFactory
 };
 
-// src/infrastructure/api/mistral-client.ts
-var import_mistralai = require("@mistralai/mistralai");
-var getMistralSingletonClient = /* @__PURE__ */ (() => {
-  const cache = /* @__PURE__ */ new Map();
-  return ({ apiKey, timeoutMs = 2e4 }) => {
-    if (!apiKey) throw new Error("Mistral requires an API key.");
-    if (cache.has(apiKey)) return cache.get(apiKey);
-    const client = new import_mistralai.Mistral({ apiKey, timeoutMs });
-    cache.set(apiKey, client);
-    return client;
-  };
-})();
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  DocumentUnderstandingService,
-  OCRProvidersRegistry,
-  OCRTextUnderstanding,
-  Providers,
-  TextStructuringProvidersRegistry,
-  VisualStructuringProvidersRegistry,
-  VisualUnderstanding,
-  getMistralSingletonClient
-});
-//# sourceMappingURL=index.cjs.map
+// src/domains/menu/prompt.ts
+var prompt_default = `# Role
+
+You are menu lens tool, your goal is to categorize text-only restaurant menus for future tagging and visualization.
+
+# Objective
+
+To categorize text-only restaurant menus for future tagging and visualization and mapping.
+
+# Languages
+
+Russian and English are main ones, but may be any
+
+# Output Rules
+
+- Only output a valid **JSON object** of categorized menu
+- Each object must strictly follow the schema.
+
+# Final Checklist Before Responding
+
+- Only respond with a valid JSON
+- Each field respects value types and format
+- JSON follows the schema and contains no extra fields or formatting`;
+
+// src/domains/menu/schema.json
+var schema_default = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  title: "MenuItemsList",
+  description: "Structured list of categorized text-only restaurant menu items.",
+  type: "array",
+  items: {
+    title: "MenuItem",
+    type: "object",
+    properties: {
+      name: {
+        type: "string",
+        description: "Name of the dish or item, exactly as found in the text menu (capitalization preserved)."
+      },
+      category: {
+        type: "string",
+        description: "High-level category this item belongs to.",
+        enum: [
+          "appetizer",
+          "main_course",
+          "side_dish",
+          "dessert",
+          "beverage",
+          "alcohol",
+          "soup",
+          "salad",
+          "bread",
+          "combo",
+          "other"
+        ]
+      },
+      description: {
+        type: "string",
+        description: "Optional description or list of ingredients if present near the item. Otherwise, leave as empty string.",
+        default: ""
+      },
+      price: {
+        type: "string",
+        description: "Optional price, as text (e.g. '12$', '\u20BD350', '\u043E\u0442 15 \u0440\u0443\u0431.', '\u20AC9.50'). Leave as empty string if not found.",
+        default: ""
+      },
+      language: {
+        type: "string",
+        description: "Detected language of the item name (e.g. 'en', 'ru', 'fr')."
+      }
+    },
+    required: [
+      "name",
+      "category",
+      "language"
+    ],
+    additionalProperties: false
+  }
+};
+
+// src/domains/menu/mistral.ts
+function MistralMenuUnderstandingFactory(options) {
+  try {
+    const client = getMistralSingletonClient({
+      apiKey: options.apiKey,
+      timeoutMs: options.timeoutMs
+    });
+    const mistralVisualStructuringAdapter = VisualStructuringProvidersRegistry["mistral" /* Mistral */]({
+      client,
+      model: options.models?.llm
+    });
+    const engine = new VisualUnderstanding(
+      mistralVisualStructuringAdapter
+    );
+    const engineContext = {
+      prompt: prompt_default,
+      outputSchema: schema_default
+    };
+    const service = new DocumentUnderstandingService(
+      engine,
+      engineContext
+    );
+    return { service, isInitialized: true };
+  } catch (error) {
+    return { error, isInitialized: false };
+  }
+}
+export {
+  MistralMenuUnderstandingFactory
+};
+//# sourceMappingURL=index.js.map

@@ -1,48 +1,38 @@
-import type { PrescriptionDocuments } from '../../../../src/domains/prescription/models';
+import { Mistral } from '@mistralai/mistralai';
+
 import { MistralVisualStructuring } from '../../../../src/infrastructure/adapters/visual-structuring/mistral';
-import { getMistralSingletonClient } from '../../../../src/infrastructure/api/mistral-client';
 import { Providers } from '../../../../src/infrastructure/providers/variants';
 import { VisualStructuringProvidersRegistry } from '../../../../src/infrastructure/providers/visual-structuring';
 
-jest.mock('../../../../src/infrastructure/api/mistral-client', () => {
-  const mockClient = { fake: true };
-  return {
-    getMistralSingletonClient: jest.fn(() => mockClient),
-  };
-});
-
 describe('VisualStructuringProvidersRegistry', () => {
-  const mockApiKey = 'sk-test';
-  const mockedGetClient = getMistralSingletonClient as jest.Mock;
+  const mockClient = {} as unknown as Mistral;
 
-  it('creates MistralVisualStructuring with model override', () => {
-    const structuring = VisualStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({
-      apiKey: mockApiKey,
-      model: 'mistral-large-latest',
-    });
+  it('includes Mistral with a factory function', () => {
+    expect(Object.keys(VisualStructuringProvidersRegistry)).toContain(Providers.Mistral);
+    expect(typeof VisualStructuringProvidersRegistry[Providers.Mistral]).toBe('function');
+  });
 
-    expect(structuring).toBeInstanceOf(MistralVisualStructuring);
+  it('has Mistral provider mapped to MistralVisualStructuring factory', () => {
+    const factory = VisualStructuringProvidersRegistry[Providers.Mistral];
+    const instance = factory<{ field: string }>({ client: mockClient });
+
+    expect(instance).toBeInstanceOf(MistralVisualStructuring);
   });
 
   it('defaults to `mistral-medium-latest` if model not provided', () => {
-    const structuring = VisualStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({
-      apiKey: mockApiKey,
+    const visualStructuring = VisualStructuringProvidersRegistry[Providers.Mistral]({
+      client: mockClient,
+    }) as MistralVisualStructuring<object[]>;
+
+    expect(visualStructuring['modelName']).toBe('mistral-medium-latest');
+  });
+
+  it('allows to create MistralVisualStructuring with model override', () => {
+    const visualStructuring = VisualStructuringProvidersRegistry[Providers.Mistral]({
+      client: mockClient,
+      model: 'mistral-large-latest',
     });
 
-    expect(structuring).toBeInstanceOf(MistralVisualStructuring);
-  });
-
-  it('reuses the same client instance for same API key', () => {
-    mockedGetClient.mockClear();
-
-    VisualStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({ apiKey: mockApiKey });
-    VisualStructuringProvidersRegistry[Providers.Mistral]<PrescriptionDocuments>({ apiKey: mockApiKey });
-
-    expect(mockedGetClient).toHaveBeenCalledTimes(2);
-    expect(mockedGetClient).toHaveBeenCalledWith({ apiKey: mockApiKey });
-  });
-
-  it('has correct provider key', () => {
-    expect(Object.keys(VisualStructuringProvidersRegistry)).toEqual([Providers.Mistral]);
+    expect(visualStructuring).toBeInstanceOf(MistralVisualStructuring);
   });
 });

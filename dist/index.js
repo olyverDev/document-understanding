@@ -1,25 +1,44 @@
 // src/core/service.ts
 var DocumentUnderstandingService = class {
-  constructor(engine, prompt, outputSchema) {
+  constructor(engine, engineContext) {
     this.engine = engine;
-    this.prompt = prompt;
-    this.outputSchema = outputSchema;
+    this.engineContext = engineContext;
   }
   async understand(document) {
-    return this.engine.understand(document, {
-      prompt: this.prompt,
-      outputSchema: this.outputSchema
-    });
+    return this.engine.understand(document, this.engineContext);
+  }
+};
+
+// src/engine/ocr-text-understanding.ts
+var OCRTextUnderstanding = class {
+  constructor(ocr, textStructuring) {
+    this.ocr = ocr;
+    this.textStructuring = textStructuring;
+  }
+  async understand(document, context) {
+    const recognized = await this.ocr.recognize(document);
+    if (typeof recognized !== "string") {
+      throw new Error("Invalid OCR result \u2014 expected string output for this engine");
+    }
+    return this.textStructuring.parse(recognized, context);
+  }
+};
+
+// src/engine/visual-understanding.ts
+var VisualUnderstanding = class {
+  constructor(adapter) {
+    this.adapter = adapter;
+  }
+  understand(document, context) {
+    return this.adapter.parse(document, context);
   }
 };
 
 // src/infrastructure/providers/variants.ts
-var Providers = {
-  Mistral: "mistral"
-  // tesseract: 'Tesseract',
-  // openai: 'Openai',
-  // ...
-};
+var Providers = /* @__PURE__ */ ((Providers2) => {
+  Providers2["Mistral"] = "mistral";
+  return Providers2;
+})(Providers || {});
 
 // src/errors/ocr.ts
 var OCRProcessingError = class extends Error {
@@ -30,66 +49,66 @@ var OCRProcessingError = class extends Error {
   }
 };
 
-// src/infrastructure/api/mistral-client.ts
-import { Mistral } from "@mistralai/mistralai";
-var getMistralSingletonClient = /* @__PURE__ */ (() => {
-  const cache = /* @__PURE__ */ new Map();
-  return ({ apiKey }) => {
-    if (!apiKey) throw new Error("Mistral requires an API key.");
-    if (cache.has(apiKey)) return cache.get(apiKey);
-    const client = new Mistral({ apiKey });
-    cache.set(apiKey, client);
-    return client;
-  };
-})();
+// src/errors/text-structuring.ts
+var TextStructuringError = class extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.cause = cause;
+    this.name = "TextStructuringError";
+  }
+};
 
-// src/infrastructure/adapters/ocr/mistral.ts
-var MistralOCR = class {
-  constructor(client, config) {
+// src/errors/visual-structuring.ts
+var VisualStructuringError = class extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.cause = cause;
+    this.name = "VisualStructuringError";
+  }
+};
+
+// src/infrastructure/adapters/ocr/mistral/base.ts
+var MistralOCRBase = class {
+  constructor(client, model) {
     this.client = client;
-    this.modelName = config.model;
+    this.model = model;
   }
-  convertVisualDocumentToDocumentContentChunk(input) {
-    const { source, file, documentType } = input;
-    const strategies = {
-      "base64:image": {
-        type: "image_url",
-        imageUrl: `data:image/jpeg;base64,${file}`
-      },
-      "base64:pdf": {
-        type: "document_url",
-        documentUrl: `data:application/pdf;base64,${file}`
-      },
-      "url:image": {
-        type: "image_url",
-        imageUrl: file
-      },
-      "url:pdf": {
-        type: "document_url",
-        documentUrl: file
-      }
-    };
-    const currentStrategy = `${source}:${documentType}`;
-    const documentContentChunk = strategies[currentStrategy];
-    if (!documentContentChunk) {
-      throw new Error(`Unsupported OCR input for ${source} ${documentType}`);
+  extractMarkdown(response) {
+    const pages = response?.pages?.map((page) => page?.markdown.trim()).filter(Boolean) ?? [];
+    if (pages.length <= 1) {
+      return pages[0] || "";
     }
-    return documentContentChunk;
+    return pages.map((content, i) => `### Page ${i + 1}
+
+${content}`).join("\n\n");
   }
-  async recognizeText(input) {
+  convertDocumentToContentChunk(input) {
+    const { source, file, documentType } = input;
+    const strategy = `${source}:${documentType}`;
+    const strategies = {
+      "base64:image": { type: "image_url", imageUrl: file },
+      "url:image": { type: "image_url", imageUrl: file },
+      "base64:pdf": { type: "document_url", documentUrl: file },
+      "url:pdf": { type: "document_url", documentUrl: file }
+    };
+    const chunk = strategies[strategy];
+    if (!chunk) {
+      throw new Error(`Unsupported OCR input: ${strategy}`);
+    }
+    return chunk;
+  }
+};
+
+// src/infrastructure/adapters/ocr/mistral/markdown.ts
+var MistralMarkdownOCR = class extends MistralOCRBase {
+  async recognize(input) {
     try {
       const response = await this.client.ocr.process({
-        model: this.modelName,
-        document: this.convertVisualDocumentToDocumentContentChunk(input),
-        includeImageBase64: false,
-        imageLimit: null,
-        imageMinSize: null
+        model: this.model,
+        document: this.convertDocumentToContentChunk(input),
+        includeImageBase64: false
       });
-      const resultMarkdown = response?.pages?.[0]?.markdown || null;
-      if (!resultMarkdown) {
-        throw new OCRProcessingError("No markdown content found in the Mistral OCR response", response);
-      }
-      return resultMarkdown;
+      return this.extractMarkdown(response);
     } catch (error) {
       if (error instanceof OCRProcessingError) {
         throw error;
@@ -98,23 +117,65 @@ var MistralOCR = class {
     }
   }
 };
-var MistralOCRFactory = (config) => {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-  return new MistralOCR(client, { model: config.model ?? "mistral-ocr-latest" });
+
+// src/infrastructure/adapters/ocr/mistral/text-chunks.ts
+import { responseFormatFromZodObject } from "@mistralai/mistralai/extra/structChat";
+import { z } from "zod";
+var MistralTextChunksOCR = class _MistralTextChunksOCR extends MistralOCRBase {
+  static {
+    this.schema = z.object({
+      textChunks: z.array(z.string()).describe(
+        `An ordered list of plain text lines extracted from the document. 
+      Extract everything as printed or handwritten text, not as illustrations, diagrams, images or tables.`
+      )
+    }).strict();
+  }
+  static {
+    this.documentAnnotationFormat = responseFormatFromZodObject(_MistralTextChunksOCR.schema);
+  }
+  async recognize(input) {
+    try {
+      const response = await this.client.ocr.process({
+        model: this.model,
+        document: this.convertDocumentToContentChunk(input),
+        includeImageBase64: false,
+        documentAnnotationFormat: _MistralTextChunksOCR.documentAnnotationFormat
+      });
+      const annotation = response.documentAnnotation;
+      if (annotation == null) {
+        throw new OCRProcessingError("No data found in Mistral OCR response");
+      }
+      if (!annotation?.trim()) {
+        return "";
+      }
+      const parsed = JSON.parse(annotation);
+      return parsed.textChunks.join("\n");
+    } catch (error) {
+      if (error instanceof OCRProcessingError) {
+        throw error;
+      }
+      throw new OCRProcessingError(error?.message, error);
+    }
+  }
 };
+
+// src/infrastructure/adapters/ocr/mistral/factory.ts
+var MistralOCRVariantClassMap = {
+  ["markdown" /* Markdown */]: MistralMarkdownOCR,
+  ["text-chunks" /* TextChunks */]: MistralTextChunksOCR
+};
+function MistralOCRFactory(config) {
+  const model = config.model ?? "mistral-ocr-latest";
+  const ClassRef = MistralOCRVariantClassMap[config.variant ?? "text-chunks" /* TextChunks */];
+  if (!ClassRef) {
+    throw new Error(`Unknown OCR variant: ${config.variant}`);
+  }
+  return new ClassRef(config.client, model);
+}
 
 // src/infrastructure/providers/ocr.ts
 var OCRProvidersRegistry = {
-  [Providers.Mistral]: MistralOCRFactory
-};
-
-// src/errors/text-structuring.ts
-var TextStructuringError = class extends Error {
-  constructor(message, cause) {
-    super(message);
-    this.cause = cause;
-    this.name = "TextStructuringError";
-  }
+  ["mistral" /* Mistral */]: MistralOCRFactory
 };
 
 // src/infrastructure/adapters/text-structuring/mistral.ts
@@ -129,10 +190,7 @@ var MistralTextStructuring = class {
   }) {
     const messageContent = [
       { type: "text", text: prompt },
-      {
-        type: "text",
-        text: `### File content in Markdown: ${text}`
-      }
+      { type: "text", text }
     ];
     try {
       const chatResponse = await this.client.chat.complete({
@@ -143,7 +201,7 @@ var MistralTextStructuring = class {
             content: messageContent
           }
         ],
-        responseFormat: outputSchema ? {
+        responseFormat: {
           type: "json_schema",
           jsonSchema: {
             strict: true,
@@ -151,8 +209,6 @@ var MistralTextStructuring = class {
             name: outputSchema.title,
             description: outputSchema.description
           }
-        } : {
-          type: "json_object"
         }
       });
       const rawOutput = chatResponse?.choices?.[0].message?.content;
@@ -172,24 +228,14 @@ var MistralTextStructuring = class {
   }
 };
 var MistralTextStructuringFactory = (config) => {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-  return new MistralTextStructuring(client, {
+  return new MistralTextStructuring(config.client, {
     model: config.model ?? "mistral-medium-latest"
   });
 };
 
 // src/infrastructure/providers/text-structuring.ts
 var TextStructuringProvidersRegistry = {
-  [Providers.Mistral]: MistralTextStructuringFactory
-};
-
-// src/errors/visual-structuring.ts
-var VisualStructuringError = class extends Error {
-  constructor(message, cause) {
-    super(message);
-    this.cause = cause;
-    this.name = "VisualStructuringError";
-  }
+  ["mistral" /* Mistral */]: MistralTextStructuringFactory
 };
 
 // src/infrastructure/adapters/visual-structuring/mistral.ts
@@ -198,51 +244,34 @@ var MistralVisualStructuring = class {
     this.client = client;
     this.modelName = config.model;
   }
-  getBase64MimeAndExtension(base64) {
-    const match = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-    if (match) {
-      const mime = match[1];
-      const ext = mime.split("/")[1];
-      const content = match[2];
-      return { mime, ext, content };
-    }
-    return { mime: "image/jpeg", ext: "jpg", content: base64 };
-  }
-  convertVisualDocumentToContentChunk(input) {
+  convertDocumentToContentChunk(input) {
     const { source, file, documentType } = input;
     const strategies = {
-      "base64:pdf": () => ({
-        type: "document_url",
-        documentUrl: `data:application/pdf;base64,${file}`
-      }),
-      "base64:image": () => {
-        const { mime, content } = this.getBase64MimeAndExtension(file);
-        return {
-          type: "image_url",
-          imageUrl: `data:${mime};base64,${content}`
-        };
-      },
-      "url:pdf": () => ({
-        type: "document_url",
-        documentUrl: file
-      }),
-      "url:image": () => ({
+      "base64:image": {
         type: "image_url",
         imageUrl: file
-      })
+      },
+      "url:image": {
+        type: "image_url",
+        imageUrl: file
+      },
+      "url:pdf": {
+        type: "document_url",
+        documentUrl: file
+      }
     };
     const currentStrategy = `${source}:${documentType}`;
-    const resolve = strategies[currentStrategy];
-    if (!resolve) {
+    const documentContentChunk = strategies[currentStrategy];
+    if (!documentContentChunk) {
       throw new Error(`Unsupported OCR input source: ${source}, type: ${documentType}`);
     }
-    return resolve();
+    return documentContentChunk;
   }
   async parse(input, {
     prompt,
     outputSchema
   }) {
-    const contentChunk = this.convertVisualDocumentToContentChunk(input);
+    const contentChunk = this.convertDocumentToContentChunk(input);
     const messageContent = [
       { type: "text", text: prompt },
       contentChunk
@@ -283,21 +312,36 @@ var MistralVisualStructuring = class {
   }
 };
 function MistralVisualStructuringFactory(config) {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-  return new MistralVisualStructuring(client, {
+  return new MistralVisualStructuring(config.client, {
     model: config.model ?? "mistral-medium-latest"
   });
 }
 
 // src/infrastructure/providers/visual-structuring.ts
 var VisualStructuringProvidersRegistry = {
-  [Providers.Mistral]: MistralVisualStructuringFactory
+  ["mistral" /* Mistral */]: MistralVisualStructuringFactory
 };
+
+// src/infrastructure/api/mistral-client.ts
+import { Mistral } from "@mistralai/mistralai";
+var getMistralSingletonClient = /* @__PURE__ */ (() => {
+  const cache = /* @__PURE__ */ new Map();
+  return ({ apiKey, timeoutMs = 2e4 }) => {
+    if (!apiKey) throw new Error("Mistral requires an API key.");
+    if (cache.has(apiKey)) return cache.get(apiKey);
+    const client = new Mistral({ apiKey, timeoutMs });
+    cache.set(apiKey, client);
+    return client;
+  };
+})();
 export {
   DocumentUnderstandingService,
   OCRProvidersRegistry,
+  OCRTextUnderstanding,
   Providers,
   TextStructuringProvidersRegistry,
-  VisualStructuringProvidersRegistry
+  VisualStructuringProvidersRegistry,
+  VisualUnderstanding,
+  getMistralSingletonClient
 };
 //# sourceMappingURL=index.js.map

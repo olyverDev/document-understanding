@@ -1,13 +1,12 @@
-import type { VisualStructuring } from '../ports/visual-structuring';
-import type { StructuringFactors } from '../typings/structuring-factors';
+import type { VisualStructuring } from '../ports/visual-structuring.interface';
 import type { VisualDocument } from '../typings/visual-document';
 
-import { UnderstandingEngine } from './understanding-engine';
+import { UnderstandingEngine } from './understanding-engine.interface';
 
-export class VisualUnderstanding<T> implements UnderstandingEngine<T> {
-  constructor(private readonly adapter: VisualStructuring<T>) {}
+export class VisualUnderstanding<T, C = unknown> implements UnderstandingEngine<T, C> {
+  constructor(private readonly adapter: VisualStructuring<T, C>) {}
 
-  understand(document: VisualDocument, factors: StructuringFactors): Promise<T> {
-    return this.adapter.parse(document, factors);
+  understand(document: VisualDocument, context?: C): Promise<T> {
+    return this.adapter.parse(document, context);
   }
 }

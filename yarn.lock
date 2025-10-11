@@ -759,10 +759,10 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@mistralai/mistralai@^1.5.2":
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/@mistralai/mistralai/-/mistralai-1.6.0.tgz#4c8ed40f0cb33d739851cd0d95b02b511aaf5785"
-  integrity sha512-PQwGV3+n7FbE7Dp3Vnd8DAa3ffx6WuVV966Gfmf4QvzwcO3Mvxpz0SnJ/PjaZcsCwApBCZpNyQzvarAKEQLKeQ==
+"@mistralai/mistralai@^1.7.1":
+  version "1.7.1"
+  resolved "https://registry.yarnpkg.com/@mistralai/mistralai/-/mistralai-1.7.1.tgz#da53fa0b45d890f521f071083077d614af9e6394"
+  integrity sha512-/kkTLOSty2zkHlwzyfnnIE4XDVVZw/w3O9zO7XuyuvMi7h5H12W7ikFNSskIOcBQuIm8vUx3GLMzjhfduECVHg==
   dependencies:
     zod-to-json-schema "^3.24.1"
 
@@ -4450,7 +4450,7 @@ zod-to-json-schema@^3.24.1:
   resolved "https://registry.yarnpkg.com/zod-to-json-schema/-/zod-to-json-schema-3.24.5.tgz#d1095440b147fb7c2093812a53c54df8d5df50a3"
   integrity sha512-/AuWwMP+YqiPbsJx5D6TfgRTc4kTLjsh5SOcd4bLsfUg2RcEXrFMJl1DGgdHy2aCfsIA/cr/1JM0xcB2GZji8g==
 
-zod@^3.24.4:
-  version "3.24.4"
-  resolved "https://registry.yarnpkg.com/zod/-/zod-3.24.4.tgz#e2e2cca5faaa012d76e527d0d36622e0a90c315f"
-  integrity sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==
+zod@^3.25.36:
+  version "3.25.36"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-3.25.36.tgz#e5ae0fb7803662b8a21d9a1e282e7d5b8ff57726"
+  integrity sha512-eRFS3i8T0IrpGdL8HQyqFAugGOn7jOjyGgGdtv5NY4Wkhi7lJDk732bNZ609YMIGFbLoaj6J69O1Mura23gfIw==

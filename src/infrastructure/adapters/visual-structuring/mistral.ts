@@ -2,16 +2,19 @@ import { Mistral } from '@mistralai/mistralai';
 import type { ContentChunk, JsonSchema } from '@mistralai/mistralai/models/components';
 
 import { VisualStructuringError } from '../../../errors/visual-structuring';
-import type { VisualStructuring } from '../../../ports/visual-structuring';
-import { StructuringFactors } from '../../../typings/structuring-factors';
+import type { VisualStructuring } from '../../../ports/visual-structuring.interface';
 import type { VisualDocument } from '../../../typings/visual-document';
-import { getMistralSingletonClient } from '../../api/mistral-client';
 
 interface MistralVisualStructuringConfig {
   model: string;
 }
 
-export class MistralVisualStructuring<T> implements VisualStructuring<T> {
+export interface MistralVisualStructuringContext {
+  prompt: string;
+  outputSchema?: JsonSchema['schemaDefinition'];
+}
+
+export class MistralVisualStructuring<T> implements VisualStructuring<T, MistralVisualStructuringContext> {
   private readonly modelName: string;
 
   constructor(
@@ -21,64 +24,51 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T> {
     this.modelName = config.model;
   }
 
-  private getBase64MimeAndExtension(base64: string): { mime: string; ext: string; content: string } {
-    const match = base64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-    if (match) {
-      const mime = match[1];
-      const ext = mime.split('/')[1];
-      const content = match[2];
-      return { mime, ext, content };
-    }
-
-    // Fallback: assume jpeg if no MIME prefix
-    return { mime: 'image/jpeg', ext: 'jpg', content: base64 };
-  }
-
-  private convertVisualDocumentToContentChunk(input: VisualDocument): ContentChunk {
+  private convertDocumentToContentChunk(input: VisualDocument): ContentChunk {
     const { source, file, documentType } = input;
 
     type Key = `${typeof source}:${typeof documentType}`;
 
-    const strategies: Record<Key, () => ContentChunk> = {
-      'base64:pdf': () => ({
-        type: 'document_url',
-        documentUrl: `data:application/pdf;base64,${file}`,
-      }),
-
-      'base64:image': () => {
-        const { mime, content } = this.getBase64MimeAndExtension(file);
-        return {
-          type: 'image_url',
-          imageUrl: `data:${mime};base64,${content}`,
-        };
-      },
-
-      'url:pdf': () => ({
+    /**
+     * NOTE: `base64:pdf` is not supported by Mistral Completion API
+     * So the `documentUrl` should start from `https`, at least it says it in the error
+     * 
+     * {
         type: 'document_url',
         documentUrl: file,
-      }),
-
-      'url:image': () => ({
+      }
+      * Docs are not very detailed regarding `ContentChunk` for Completion API, `documentUrl` is a `string`
+     */
+    const strategies: Partial<Record<Key, ContentChunk>> = {
+      'base64:image': {
+          type: 'image_url',
+          imageUrl: file,
+      },
+      'url:image': {
         type: 'image_url',
         imageUrl: file,
-      }),
+      },
+      'url:pdf': {
+        type: 'document_url',
+        documentUrl: file,
+      },
     };
 
     const currentStrategy: Key = `${source}:${documentType}`;
-    const resolve = strategies[currentStrategy];
+    const documentContentChunk = strategies[currentStrategy];
 
-    if (!resolve) {
+    if (!documentContentChunk) {
       throw new Error(`Unsupported OCR input source: ${source}, type: ${documentType}`);
     }
 
-    return resolve();
+    return documentContentChunk;
   }
 
   async parse(input: VisualDocument, {
     prompt,
     outputSchema,
-  }: StructuringFactors): Promise<T> {
-    const contentChunk = this.convertVisualDocumentToContentChunk(input);
+  }: MistralVisualStructuringContext): Promise<T> {
+    const contentChunk = this.convertDocumentToContentChunk(input);
 
     const messageContent: ContentChunk[] = [
       { type: 'text', text: prompt },
@@ -99,9 +89,9 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T> {
               type: 'json_schema',
               jsonSchema: {
                 strict: true,
-                schemaDefinition: outputSchema as JsonSchema['schemaDefinition'],
-                name: outputSchema.title as string,
-                description: outputSchema.description as string,
+                schemaDefinition: outputSchema,
+                name: outputSchema.title,
+                description: outputSchema.description,
               },
             }
           : {
@@ -132,16 +122,14 @@ export class MistralVisualStructuring<T> implements VisualStructuring<T> {
 }
 
 interface MistralVisualStructuringFactoryConfig {
-  apiKey: string;
+  client: Mistral;
   model?: string;
 }
 
 export function MistralVisualStructuringFactory<T>(
   config: MistralVisualStructuringFactoryConfig
-): VisualStructuring<T> {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-
-  return new MistralVisualStructuring<T>(client, {
+): VisualStructuring<T, MistralVisualStructuringContext> {
+  return new MistralVisualStructuring<T>(config.client, {
     model: config.model ?? 'mistral-medium-latest',
   });
 }

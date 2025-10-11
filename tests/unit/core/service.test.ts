@@ -1,5 +1,5 @@
 import { DocumentUnderstandingService } from '../../../src/core/service';
-import type { UnderstandingEngine } from '../../../src/engine/understanding-engine';
+import type { UnderstandingEngine } from '../../../src/engine/understanding-engine.interface';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
 describe('DocumentUnderstandingService', () => {
@@ -20,7 +20,7 @@ describe('DocumentUnderstandingService', () => {
     required: ['field'],
   };
 
-  const document: VisualDocument = {
+  const base64Image: VisualDocument = {
     source: 'base64',
     file: 'data:image/png;base64,...',
     documentType: 'image',
@@ -30,14 +30,14 @@ describe('DocumentUnderstandingService', () => {
     jest.clearAllMocks();
   });
 
-  it('calls engine.understand with prompt and schema', async () => {
+  it('delegates to engine.understand with prompt and schema', async () => {
     const expected = { field: 'value' };
     mockUnderstand.mockResolvedValueOnce(expected);
 
-    const service = new DocumentUnderstandingService(mockEngine, prompt, outputSchema);
-    const result = await service.understand(document);
+    const service = new DocumentUnderstandingService(mockEngine, { prompt, outputSchema });
+    const result = await service.understand(base64Image);
 
-    expect(mockUnderstand).toHaveBeenCalledWith(document, {
+    expect(mockUnderstand).toHaveBeenCalledWith(base64Image, {
       prompt,
       outputSchema,
     });
@@ -45,14 +45,14 @@ describe('DocumentUnderstandingService', () => {
     expect(result).toEqual(expected);
   });
 
-  it('works without outputSchema', async () => {
+  it('omits outputSchema if not provided in context', async () => {
     const expected = { field: 'value' };
     mockUnderstand.mockResolvedValueOnce(expected);
 
-    const service = new DocumentUnderstandingService(mockEngine, prompt);
-    const result = await service.understand(document);
+    const service = new DocumentUnderstandingService(mockEngine, { prompt });
+    const result = await service.understand(base64Image);
 
-    expect(mockUnderstand).toHaveBeenCalledWith(document, {
+    expect(mockUnderstand).toHaveBeenCalledWith(base64Image, {
       prompt,
       outputSchema: undefined,
     });
@@ -60,12 +60,12 @@ describe('DocumentUnderstandingService', () => {
     expect(result).toEqual(expected);
   });
 
-  it('propagates errors from engine', async () => {
-    const error = new Error('Engine failed');
+  it('throws if engine.understand rejects', async () => {
+    const error = new Error('Engine failure');
     mockUnderstand.mockRejectedValueOnce(error);
 
-    const service = new DocumentUnderstandingService(mockEngine, prompt, outputSchema);
+    const service = new DocumentUnderstandingService(mockEngine, { prompt, outputSchema });
 
-    await expect(service.understand(document)).rejects.toThrow(error);
+    await expect(service.understand(base64Image)).rejects.toThrow(error);
   });
 });

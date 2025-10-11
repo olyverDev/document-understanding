@@ -1,15 +1,11 @@
 import { VisualUnderstanding } from '../../../src/engine/visual-understanding';
-import type { VisualStructuring } from '../../../src/ports/visual-structuring';
-import type { StructuringFactors } from '../../../src/typings/structuring-factors';
+import type { VisualStructuring } from '../../../src/ports/visual-structuring.interface';
 import type { VisualDocument } from '../../../src/typings/visual-document';
 
 describe('VisualUnderstanding', () => {
-  const mockParse = jest.fn();
-  const mockAdapter: VisualStructuring<{ value: string }> = {
-    parse: mockParse,
-  };
-
-  const service = new VisualUnderstanding(mockAdapter);
+  const parse = jest.fn();
+  const adapter: VisualStructuring<{ value: string }> = { parse };
+  const service = new VisualUnderstanding(adapter);
 
   const document: VisualDocument = {
     source: 'url',
@@ -17,7 +13,7 @@ describe('VisualUnderstanding', () => {
     documentType: 'image',
   };
 
-  const factors: StructuringFactors = {
+  const context = {
     prompt: 'Extract value',
   };
 
@@ -25,20 +21,20 @@ describe('VisualUnderstanding', () => {
     jest.clearAllMocks();
   });
 
-  it('delegates to adapter.parse and returns result', async () => {
+  it('calls adapter.parse with document and context and returns result', async () => {
     const expected = { value: 'ok' };
-    mockParse.mockResolvedValueOnce(expected);
+    parse.mockResolvedValueOnce(expected);
 
-    const result = await service.understand(document, factors);
+    const result = await service.understand(document, context);
 
-    expect(mockParse).toHaveBeenCalledWith(document, factors);
+    expect(parse).toHaveBeenCalledWith(document, context);
     expect(result).toEqual(expected);
   });
 
-  it('propagates adapter.parse errors', async () => {
-    const error = new Error('adapter failed');
-    mockParse.mockRejectedValueOnce(error);
+  it('throws if adapter.parse throws', async () => {
+    const error = new Error('Adapter failed');
+    parse.mockRejectedValueOnce(error);
 
-    await expect(service.understand(document, factors)).rejects.toThrow(error);
+    await expect(service.understand(document, context)).rejects.toThrow(error);
   });
 });

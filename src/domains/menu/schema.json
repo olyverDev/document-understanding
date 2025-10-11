@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MenuItemsList",
+  "description": "Structured list of categorized text-only restaurant menu items.",
+  "type": "array",
+  "items": {
+    "title": "MenuItem",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name of the dish or item, exactly as found in the text menu (capitalization preserved)."
+      },
+      "category": {
+        "type": "string",
+        "description": "High-level category this item belongs to.",
+        "enum": [
+          "appetizer",
+          "main_course",
+          "side_dish",
+          "dessert",
+          "beverage",
+          "alcohol",
+          "soup",
+          "salad",
+          "bread",
+          "combo",
+          "other"
+        ]
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description or list of ingredients if present near the item. Otherwise, leave as empty string.",
+        "default": ""
+      },
+      "price": {
+        "type": "string",
+        "description": "Optional price, as text (e.g. '12$', '₽350', 'от 15 руб.', '€9.50'). Leave as empty string if not found.",
+        "default": ""
+      },
+      "language": {
+        "type": "string",
+        "description": "Detected language of the item name (e.g. 'en', 'ru', 'fr')."
+      }
+    },
+    "required": [
+      "name",
+      "category",
+      "language"
+    ],
+    "additionalProperties": false
+  }
+}

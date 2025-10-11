@@ -2,15 +2,18 @@ import { Mistral } from "@mistralai/mistralai";
 import type { ContentChunk, JsonSchema } from "@mistralai/mistralai/models/components";
 
 import { TextStructuringError } from "../../../errors/text-structuring";
-import type { TextStructuring } from "../../../ports/text-structuring";
-import { StructuringFactors } from "../../../typings/structuring-factors";
-import { getMistralSingletonClient } from "../../api/mistral-client";
+import type { TextStructuring } from "../../../ports/text-structuring.interface";
 
 interface MistralTextStructuringConfig {
   model: string;
 }
 
-export class MistralTextStructuring<T> implements TextStructuring<T> {
+export interface MistralTextStructuringContext {
+  prompt: string;
+  outputSchema: JsonSchema['schemaDefinition'];
+}
+
+export class MistralTextStructuring<T> implements TextStructuring<T, MistralTextStructuringContext> {
   private readonly modelName: string;
 
   constructor(
@@ -23,13 +26,10 @@ export class MistralTextStructuring<T> implements TextStructuring<T> {
   async parse(text: string, {
     prompt,
     outputSchema,
-  }: StructuringFactors): Promise<T> {
+  }: MistralTextStructuringContext): Promise<T> {
     const messageContent: ContentChunk[] = [
       { type: "text", text: prompt },
-      {
-        type: "text",
-        text: `### File content in Markdown: ${text}`,
-      },
+      { type: "text", text },
     ];
 
     try {
@@ -41,16 +41,14 @@ export class MistralTextStructuring<T> implements TextStructuring<T> {
             content: messageContent,
           },
         ],
-        responseFormat: outputSchema ? {
+        responseFormat: {
           type: 'json_schema',
           jsonSchema: {
             strict: true,
-            schemaDefinition: outputSchema as JsonSchema['schemaDefinition'],
-            name: outputSchema.title as string,
-            description: outputSchema.description as string,
+            schemaDefinition: outputSchema,
+            name: outputSchema.title,
+            description: outputSchema.description,
           },
-        } : {
-          type: 'json_object'
         },
       });
 
@@ -79,15 +77,14 @@ export class MistralTextStructuring<T> implements TextStructuring<T> {
 }
 
 export type MistralTextStructuringFactoryConfig = {
-  apiKey: string;
+  client: Mistral;
   model?: string;
 };
 
 export const MistralTextStructuringFactory = <T>(
   config: MistralTextStructuringFactoryConfig
-): TextStructuring<T> => {
-  const client = getMistralSingletonClient({ apiKey: config.apiKey });
-  return new MistralTextStructuring<T>(client, {
+): TextStructuring<T, MistralTextStructuringContext> => {
+  return new MistralTextStructuring<T>(config.client, {
     model: config.model ?? 'mistral-medium-latest',
   });
 };
