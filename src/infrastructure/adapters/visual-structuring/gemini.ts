@@ -23,6 +23,32 @@ export class GeminiVisualStructuring<T> implements VisualStructuring<T, GeminiVi
     this.modelName = config.model;
   }
 
+  private static readonly BASE64_DATA_URI_PATTERN = /^data:(image\/\w+);base64,/;
+
+  private extractMimeType(base64String: string): string | null {
+    const match = base64String.match(GeminiVisualStructuring.BASE64_DATA_URI_PATTERN);
+    return match ? match[1] : null;
+  }
+
+  private detectMimeTypeFromUrl(url: string, documentType: 'image' | 'pdf'): string {
+    if (documentType === 'pdf') {
+      return 'application/pdf';
+    }
+
+    const extension = url.split('.').pop()?.toLowerCase();
+    const mimeTypeMap: Record<string, string> = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml',
+      'bmp': 'image/bmp',
+    };
+
+    return mimeTypeMap[extension || ''] || 'image/jpeg';
+  }
+
   private convertDocumentToPart(input: VisualDocument): Part {
     const { source, file, documentType } = input;
 
@@ -31,20 +57,22 @@ export class GeminiVisualStructuring<T> implements VisualStructuring<T, GeminiVi
     const strategies: Partial<Record<Key, Part>> = {
       'base64:image': {
         inlineData: {
-          data: file.replace(/^data:image\/\w+;base64,/, ''),
+          data: file.replace(GeminiVisualStructuring.BASE64_DATA_URI_PATTERN, ''),
           mimeType: this.extractMimeType(file) || 'image/jpeg',
         },
       },
       'url:image': {
         fileData: {
-          mimeType: 'image/jpeg',
           fileUri: file,
+          // mimeType is typed as optional in SDK but marked "Required" in docs
+          // Gemini may auto-detect from fileUri, but providing it for safety
+          mimeType: this.detectMimeTypeFromUrl(file, 'image'),
         },
       },
       'url:pdf': {
         fileData: {
-          mimeType: 'application/pdf',
           fileUri: file,
+          mimeType: this.detectMimeTypeFromUrl(file, 'pdf'),
         },
       },
     };
@@ -59,38 +87,77 @@ export class GeminiVisualStructuring<T> implements VisualStructuring<T, GeminiVi
     return part;
   }
 
-  private extractMimeType(base64String: string): string | null {
-    const match = base64String.match(/^data:(image\/\w+);base64,/);
-    return match ? match[1] : null;
+  private convertJsonSchemaTypeToGeminiType(jsonSchemaType: string): Type {
+    const typeMap: Record<string, Type> = {
+      'string': Type.STRING,
+      'number': Type.NUMBER,
+      'integer': Type.INTEGER,
+      'boolean': Type.BOOLEAN,
+      'array': Type.ARRAY,
+      'object': Type.OBJECT,
+    };
+    return typeMap[jsonSchemaType] || Type.STRING;
   }
 
-  private convertSchemaToGeminiFormat(schema: Record<string, unknown>): Schema {
-    // Convert JSON Schema to Gemini's schema format
-    const convertType = (type: string): Type => {
-      const typeMap: Record<string, Type> = {
-        'string': Type.STRING,
-        'number': Type.NUMBER,
-        'integer': Type.INTEGER,
-        'boolean': Type.BOOLEAN,
-        'array': Type.ARRAY,
-        'object': Type.OBJECT,
-      };
-      return typeMap[type] || Type.STRING;
+  private convertArraySchemaToGeminiFormat(schema: Record<string, unknown>): Schema {
+    const items = schema.items as Record<string, unknown>;
+    return {
+      type: Type.ARRAY,
+      items: items.type === 'object' 
+        ? this.convertSchemaToGeminiFormat(items)
+        : { type: this.convertJsonSchemaTypeToGeminiType(items.type as string) },
+      description: schema.description as string | undefined,
     };
+  }
 
-    // Handle array schemas (top-level arrays)
-    if (schema.type === 'array' && schema.items) {
-      const items = schema.items as Record<string, unknown>;
+  private convertObjectPropertyToGeminiSchema(
+    propValue: Record<string, unknown>
+  ): Schema {
+    if (propValue.type === 'array' && propValue.items) {
+      const items = propValue.items as Record<string, unknown>;
       return {
         type: Type.ARRAY,
         items: items.type === 'object' 
           ? this.convertSchemaToGeminiFormat(items)
-          : { type: convertType(items.type as string) },
-        description: schema.description as string | undefined,
+          : { type: this.convertJsonSchemaTypeToGeminiType(items.type as string) },
+        description: propValue.description as string | undefined,
       };
     }
+    
+    if (propValue.type === 'object' && propValue.properties) {
+      return this.convertSchemaToGeminiFormat(propValue);
+    }
+    
+    const schema: Schema = {
+      type: this.convertJsonSchemaTypeToGeminiType(propValue.type as string),
+      description: propValue.description as string | undefined,
+    };
+    
+    if (propValue.enum && Array.isArray(propValue.enum)) {
+      schema.enum = propValue.enum as string[];
+    }
+    
+    return schema;
+  }
 
-    // Handle object schemas
+  private convertPropertiesToGeminiFormat(
+    properties: Record<string, unknown>
+  ): Record<string, Schema> {
+    return Object.entries(properties).reduce(
+      (result, [key, value]) => {
+        const propValue = value as Record<string, unknown>;
+        result[key] = this.convertObjectPropertyToGeminiSchema(propValue);
+        return result;
+      },
+      {} as Record<string, Schema>
+    );
+  }
+
+  private convertSchemaToGeminiFormat(schema: Record<string, unknown>): Schema {
+    if (schema.type === 'array' && schema.items) {
+      return this.convertArraySchemaToGeminiFormat(schema);
+    }
+
     if (!schema.properties) {
       return {
         type: Type.OBJECT,
@@ -98,41 +165,11 @@ export class GeminiVisualStructuring<T> implements VisualStructuring<T, GeminiVi
       };
     }
 
-    const convertProperties = (props: Record<string, unknown>): Record<string, Schema> => {
-      const result: Record<string, Schema> = {};
-      for (const [key, value] of Object.entries(props)) {
-        const propValue = value as Record<string, unknown>;
-        if (propValue.type === 'array' && propValue.items) {
-          const items = propValue.items as Record<string, unknown>;
-          result[key] = {
-            type: Type.ARRAY,
-            items: items.type === 'object' 
-              ? this.convertSchemaToGeminiFormat(items)
-              : { type: convertType(items.type as string) },
-            description: propValue.description as string | undefined,
-          };
-        } else if (propValue.type === 'object' && propValue.properties) {
-          result[key] = this.convertSchemaToGeminiFormat(propValue);
-        } else {
-          const schema: Schema = {
-            type: convertType(propValue.type as string),
-            description: propValue.description as string | undefined,
-          };
-          
-          // Handle enum constraints
-          if (propValue.enum && Array.isArray(propValue.enum)) {
-            schema.enum = propValue.enum as string[];
-          }
-          
-          result[key] = schema;
-        }
-      }
-      return result;
-    };
-
     return {
       type: Type.OBJECT,
-      properties: convertProperties(schema.properties as Record<string, unknown>),
+      properties: this.convertPropertiesToGeminiFormat(
+        schema.properties as Record<string, unknown>
+      ),
       required: (schema.required as string[]) || [],
     };
   }
