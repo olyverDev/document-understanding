@@ -194,4 +194,8 @@ declare const getMistralSingletonClient: ({ apiKey, timeoutMs }: {
     timeoutMs?: number;
 }) => Mistral;
 
-export { OCRProvidersRegistry, type OCRProvidersRegistryType, OCRTextUnderstanding, type ProviderName, Providers, TextStructuringProvidersRegistry, type TextStructuringProvidersRegistryType, VisualDocument, VisualStructuringProvidersRegistry, type VisualStructuringProvidersRegistryType, VisualUnderstanding, getMistralSingletonClient };
+declare const getGeminiSingletonClient: ({ apiKey }: {
+    apiKey: string;
+}) => GoogleGenAI;
+
+export { OCRProvidersRegistry, type OCRProvidersRegistryType, OCRTextUnderstanding, type ProviderName, Providers, TextStructuringProvidersRegistry, type TextStructuringProvidersRegistryType, VisualDocument, VisualStructuringProvidersRegistry, type VisualStructuringProvidersRegistryType, VisualUnderstanding, getGeminiSingletonClient, getMistralSingletonClient };

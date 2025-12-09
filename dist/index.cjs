@@ -27,6 +27,7 @@ __export(index_exports, {
   TextStructuringProvidersRegistry: () => TextStructuringProvidersRegistry,
   VisualStructuringProvidersRegistry: () => VisualStructuringProvidersRegistry,
   VisualUnderstanding: () => VisualUnderstanding,
+  getGeminiSingletonClient: () => getGeminiSingletonClient,
   getMistralSingletonClient: () => getMistralSingletonClient
 });
 module.exports = __toCommonJS(index_exports);
@@ -541,6 +542,19 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
     return client;
   };
 })();
+
+// src/infrastructure/api/gemini-client.ts
+var import_genai2 = require("@google/genai");
+var getGeminiSingletonClient = /* @__PURE__ */ (() => {
+  const cache = /* @__PURE__ */ new Map();
+  return ({ apiKey }) => {
+    if (!apiKey) throw new Error("Gemini requires an API key.");
+    if (cache.has(apiKey)) return cache.get(apiKey);
+    const client = new import_genai2.GoogleGenAI({ apiKey });
+    cache.set(apiKey, client);
+    return client;
+  };
+})();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DocumentUnderstandingService,
@@ -550,6 +564,7 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
   TextStructuringProvidersRegistry,
   VisualStructuringProvidersRegistry,
   VisualUnderstanding,
+  getGeminiSingletonClient,
   getMistralSingletonClient
 });
 //# sourceMappingURL=index.cjs.map

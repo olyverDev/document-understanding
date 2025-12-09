@@ -508,6 +508,19 @@ var getMistralSingletonClient = /* @__PURE__ */ (() => {
     return client;
   };
 })();
+
+// src/infrastructure/api/gemini-client.ts
+import { GoogleGenAI as GoogleGenAI2 } from "@google/genai";
+var getGeminiSingletonClient = /* @__PURE__ */ (() => {
+  const cache = /* @__PURE__ */ new Map();
+  return ({ apiKey }) => {
+    if (!apiKey) throw new Error("Gemini requires an API key.");
+    if (cache.has(apiKey)) return cache.get(apiKey);
+    const client = new GoogleGenAI2({ apiKey });
+    cache.set(apiKey, client);
+    return client;
+  };
+})();
 export {
   DocumentUnderstandingService,
   OCRProvidersRegistry,
@@ -516,6 +529,7 @@ export {
   TextStructuringProvidersRegistry,
   VisualStructuringProvidersRegistry,
   VisualUnderstanding,
+  getGeminiSingletonClient,
   getMistralSingletonClient
 };
 //# sourceMappingURL=index.js.map
