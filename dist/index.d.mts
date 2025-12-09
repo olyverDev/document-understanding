@@ -4,6 +4,7 @@ import { Mistral } from '@mistralai/mistralai';
 import * as _mistralai_mistralai_models_components from '@mistralai/mistralai/models/components';
 import { OCRResponse, ImageURLChunk, DocumentURLChunk, JsonSchema } from '@mistralai/mistralai/models/components';
 import { z } from 'zod';
+import { GoogleGenAI } from '@google/genai';
 
 /**
  * Interface for OCR adapters.
@@ -89,7 +90,8 @@ declare class VisualUnderstanding<T, C = unknown> implements UnderstandingEngine
 }
 
 declare enum Providers {
-    Mistral = "mistral"
+    Mistral = "mistral",
+    Gemini = "gemini"
 }
 type ProviderName = Providers;
 
@@ -161,6 +163,16 @@ declare const TextStructuringProvidersRegistry: {
 };
 type TextStructuringProvidersRegistryType = typeof TextStructuringProvidersRegistry;
 
+interface GeminiVisualStructuringContext {
+    prompt: string;
+    outputSchema?: Record<string, unknown>;
+}
+interface GeminiVisualStructuringFactoryConfig {
+    client: GoogleGenAI;
+    model?: string;
+}
+declare function GeminiVisualStructuringFactory<T>(config: GeminiVisualStructuringFactoryConfig): VisualStructuring<T, GeminiVisualStructuringContext>;
+
 interface MistralVisualStructuringContext {
     prompt: string;
     outputSchema?: JsonSchema['schemaDefinition'];
@@ -173,6 +185,7 @@ declare function MistralVisualStructuringFactory<T>(config: MistralVisualStructu
 
 declare const VisualStructuringProvidersRegistry: {
     readonly mistral: typeof MistralVisualStructuringFactory;
+    readonly gemini: typeof GeminiVisualStructuringFactory;
 };
 type VisualStructuringProvidersRegistryType = typeof VisualStructuringProvidersRegistry;
 

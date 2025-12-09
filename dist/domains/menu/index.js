@@ -230,6 +230,147 @@ var TextStructuringProvidersRegistry = {
   ["mistral" /* Mistral */]: MistralTextStructuringFactory
 };
 
+// src/infrastructure/adapters/visual-structuring/gemini.ts
+import { Type } from "@google/genai";
+var GeminiVisualStructuring = class {
+  constructor(client, config) {
+    this.client = client;
+    this.modelName = config.model;
+  }
+  convertDocumentToPart(input) {
+    const { source, file, documentType } = input;
+    const strategies = {
+      "base64:image": {
+        inlineData: {
+          data: file.replace(/^data:image\/\w+;base64,/, ""),
+          mimeType: this.extractMimeType(file) || "image/jpeg"
+        }
+      },
+      "url:image": {
+        fileData: {
+          mimeType: "image/jpeg",
+          fileUri: file
+        }
+      },
+      "url:pdf": {
+        fileData: {
+          mimeType: "application/pdf",
+          fileUri: file
+        }
+      }
+    };
+    const currentStrategy = `${source}:${documentType}`;
+    const part = strategies[currentStrategy];
+    if (!part) {
+      throw new Error(`Unsupported visual input source: ${source}, type: ${documentType}`);
+    }
+    return part;
+  }
+  extractMimeType(base64String) {
+    const match = base64String.match(/^data:(image\/\w+);base64,/);
+    return match ? match[1] : null;
+  }
+  convertSchemaToGeminiFormat(schema) {
+    const convertType = (type) => {
+      const typeMap = {
+        "string": Type.STRING,
+        "number": Type.NUMBER,
+        "integer": Type.INTEGER,
+        "boolean": Type.BOOLEAN,
+        "array": Type.ARRAY,
+        "object": Type.OBJECT
+      };
+      return typeMap[type] || Type.STRING;
+    };
+    if (schema.type === "array" && schema.items) {
+      const items = schema.items;
+      return {
+        type: Type.ARRAY,
+        items: items.type === "object" ? this.convertSchemaToGeminiFormat(items) : { type: convertType(items.type) },
+        description: schema.description
+      };
+    }
+    if (!schema.properties) {
+      return {
+        type: Type.OBJECT,
+        properties: {}
+      };
+    }
+    const convertProperties = (props) => {
+      const result = {};
+      for (const [key, value] of Object.entries(props)) {
+        const propValue = value;
+        if (propValue.type === "array" && propValue.items) {
+          const items = propValue.items;
+          result[key] = {
+            type: Type.ARRAY,
+            items: items.type === "object" ? this.convertSchemaToGeminiFormat(items) : { type: convertType(items.type) },
+            description: propValue.description
+          };
+        } else if (propValue.type === "object" && propValue.properties) {
+          result[key] = this.convertSchemaToGeminiFormat(propValue);
+        } else {
+          const schema2 = {
+            type: convertType(propValue.type),
+            description: propValue.description
+          };
+          if (propValue.enum && Array.isArray(propValue.enum)) {
+            schema2.enum = propValue.enum;
+          }
+          result[key] = schema2;
+        }
+      }
+      return result;
+    };
+    return {
+      type: Type.OBJECT,
+      properties: convertProperties(schema.properties),
+      required: schema.required || []
+    };
+  }
+  async parse(input, {
+    prompt,
+    outputSchema
+  }) {
+    const documentPart = this.convertDocumentToPart(input);
+    try {
+      const config = {
+        temperature: 0.1,
+        responseMimeType: "application/json"
+      };
+      if (outputSchema) {
+        config.responseSchema = this.convertSchemaToGeminiFormat(outputSchema);
+      }
+      const chat = this.client.chats.create({
+        model: this.modelName,
+        config
+      });
+      const result = await chat.sendMessage({
+        message: [
+          { text: prompt },
+          documentPart
+        ]
+      });
+      const text = result.text;
+      if (!text) {
+        throw new VisualStructuringError("Expected response to contain text.");
+      }
+      return JSON.parse(text);
+    } catch (error) {
+      if (error instanceof VisualStructuringError) {
+        throw error;
+      }
+      const message = error instanceof SyntaxError ? "Failed to parse response as JSON" : error.message;
+      throw new VisualStructuringError(message, error);
+    }
+  }
+};
+function GeminiVisualStructuringFactory(config) {
+  return new GeminiVisualStructuring(config.client, {
+    model: config.model ?? "gemini-2.0-flash-exp"
+  });
+}
+
 // src/infrastructure/adapters/visual-structuring/mistral.ts
 var MistralVisualStructuring = class {
   constructor(client, config) {
@@ -311,7 +452,8 @@ function MistralVisualStructuringFactory(config) {
 
 // src/infrastructure/providers/visual-structuring.ts
 var VisualStructuringProvidersRegistry = {
-  ["mistral" /* Mistral */]: MistralVisualStructuringFactory
+  ["mistral" /* Mistral */]: MistralVisualStructuringFactory,
+  ["gemini" /* Gemini */]: GeminiVisualStructuringFactory
 };
 
 // src/domains/menu/prompt.ts
