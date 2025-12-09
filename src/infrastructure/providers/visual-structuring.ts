@@ -1,9 +1,11 @@
+import { GeminiVisualStructuringFactory } from '../adapters/visual-structuring/gemini';
 import { MistralVisualStructuringFactory } from '../adapters/visual-structuring/mistral';
 
 import { Providers } from './variants';
 
 export const VisualStructuringProvidersRegistry = {
   [Providers.Mistral]: MistralVisualStructuringFactory,
+  [Providers.Gemini]: GeminiVisualStructuringFactory,
 } as const;
 
 export type VisualStructuringProvidersRegistryType = typeof VisualStructuringProvidersRegistry;
